@@ -8,6 +8,7 @@ import time
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import get_config, reload_config
+from app.download_stats import DownloadTracker
 from app.plugins.registry import get_plugin
 
 logger = logging.getLogger("mirrord.sync")
@@ -26,6 +27,7 @@ class SyncEngine:
         self._started = False
         self._config_mtime: float = 0
         self._reload_lock = threading.Lock()
+        self.download_tracker = DownloadTracker()
 
     def start(self) -> None:
         if self._started:
@@ -69,6 +71,13 @@ class SyncEngine:
                 self.config.sync.lock_dir, f"{pc.slug}.stats.json"
             )
             plugin.stats.load()
+            # Initialise download tracker for this plugin
+            self.download_tracker.ensure_plugin(
+                pc.slug,
+                stats_path=os.path.join(
+                    self.config.sync.lock_dir, f"{pc.slug}.download_stats.json"
+                ),
+            )
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
 
     # ── config hot-reload ──────────────────────────────────────────
@@ -111,6 +120,10 @@ class SyncEngine:
             self.config = new_config
             self._record_config_mtime()
             self._init_plugins()
+
+            # Prune download stats for removed plugins
+            active_slugs = {p.stats.slug for p in self.plugins}
+            self.download_tracker.prune_stale(active_slugs)
 
             # Reschedule with potentially new interval
             self.scheduler.remove_job("sync_all")
@@ -162,6 +175,12 @@ class SyncEngine:
 
     def get_all_stats(self) -> list:
         return [p.stats.snapshot() for p in self.plugins]
+
+    def record_download(self, slug: str, path: str, size: int) -> None:
+        self.download_tracker.record_download(slug, path, size)
+
+    def get_download_stats(self) -> dict[str, dict]:
+        return self.download_tracker.get_all_snapshots()
 
     def get_next_sync_time(self) -> float | None:
         """Return the next scheduled sync timestamp, or None if not available."""

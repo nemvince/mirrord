@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>mirrord — Mirror Dashboard</title>
-  <meta http-equiv="refresh" content="30">
   <link rel="stylesheet" href="/static/output.css">
 </head>
 <body class="h-full flex flex-col py-4 mx-auto max-w-3xl px-4 lg:px-0">
@@ -22,26 +21,22 @@
           <div class="flex justify-between"><span class="text-dim">Disk Total</span><span>{{ "%.1f"|format(disk_total / 1073741824) }} GiB</span></div>
           <div class="flex justify-between"><span class="text-dim">Disk Used</span><span>{{ "%.1f"|format(disk_used / 1073741824) }} GiB</span></div>
           <div class="flex justify-between"><span class="text-dim">Disk Free</span><span>{{ "%.1f"|format(disk_free / 1073741824) }} GiB</span></div>
-          {% set pct = (disk_used / disk_total * 100) if disk_total else 0 %}
-          <div class="flex justify-between"><span class="text-dim">Usage</span><span>{{ "%.1f"|format(pct) }}%</span></div>
+          {% set dpct = (disk_used / disk_total * 100) if disk_total else 0 %}
+          <div class="flex justify-between"><span class="text-dim">Usage</span><span>{{ "%.1f"|format(dpct) }}%</span></div>
           {% endif %}
           {% if stats %}
           <div class="flex justify-between"><span class="text-dim">Mirrors</span><span>{{ stats|length }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span>{{ total_syncs }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Failures</span><span>{{ total_failures }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Transferred</span><span>{{ "%.1f"|format(total_bytes / 1073741824) }} GiB</span></div>
-          {% if now_syncing %}
-          <div class="flex justify-between"><span class="text-dim">Syncing Now</span><span>{{ now_syncing }}</span></div>
-          {% endif %}
-          {% if next_sync_ts %}
-          {% set secs = (next_sync_ts - now)|int %}
-          <div class="flex justify-between"><span class="text-dim">Next Sync</span><span>{% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% else %}{{ secs }}s{% endif %}</span></div>
-          {% endif %}
+          <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span id="global-syncs">{{ total_syncs }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Failures</span><span id="global-fails">{{ total_failures }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Transferred</span><span id="global-xfer">{{ "%.1f"|format(total_bytes / 1073741824) }} GiB</span></div>
+          <div class="flex justify-between"><span class="text-dim">Downloads</span><span id="global-downloads">{{ total_downloads }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Served</span><span id="global-served">{{ "%.1f"|format(total_bytes_served / 1073741824) }} GiB</span></div>
+          <div class="flex justify-between" id="global-syncing-row"{% if not now_syncing %} style="display:none"{% endif %}><span class="text-dim">Syncing Now</span><span id="global-syncing">{{ now_syncing }}</span></div>
+          <div class="flex justify-between" id="global-next-row"{% if not next_sync_ts %} style="display:none"{% endif %}><span class="text-dim">Next Sync</span><span id="global-next">{% if next_sync_ts %}{% set secs = (next_sync_ts - now)|int %}{% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% else %}{{ secs }}s{% endif %}{% endif %}</span></div>
           {% endif %}
         </div>
         {% if disk_total %}
-        {% set pct = (disk_used / disk_total * 100) if disk_total else 0 %}
-        <div class="bar"><div class="bar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div></div>
+        <div class="bar" id="global-disk-bar-wrap"><div class="bar-fill" id="global-disk-bar" style="width:{{ "%.1f"|format(dpct) }}%"></div></div>
         {% endif %}
       </div>
     </div>
@@ -50,14 +45,14 @@
     {% if stats %}
     {% set charts = stats|selectattr('dir_size', 'gt', 0)|list %}
     {% if charts %}
-    <div class="mb-6 border border-outline">
+    <div class="mb-6 border border-outline" id="sizes-panel">
       <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Mirror Sizes</div>
-      <div class="p-3 text-xs">
+      <div class="p-3 text-xs" id="sizes-body">
         {% for s in charts %}
-        <div class="flex items-center gap-x-3 py-1">
+        <div class="flex items-center gap-x-3 py-1" data-slug="{{ s.slug }}">
           <span class="w-32 shrink-0 truncate text-cream">{{ s.plugin_name }}</span>
-          <div class="bar flex-1"><div class="bar-fill" style="width:{{ "%.1f"|format(s.dir_size / max_dir_size * 100) if max_dir_size else 0 }}%"></div></div>
-          <span class="w-20 text-right text-dim">{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span>
+          <div class="bar flex-1"><div class="bar-fill" data-role="size-bar" style="width:{{ "%.1f"|format(s.dir_size / max_dir_size * 100) if max_dir_size else 0 }}%"></div></div>
+          <span class="w-20 text-right text-dim" data-role="size-val">{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span>
         </div>
         {% endfor %}
       </div>
@@ -69,56 +64,79 @@
       <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Mirrors</div>
       <div class="p-3">
         {% for s in stats %}
-        <div class="py-2.5 border-b border-dashed border-divide last:border-b-0 last:pb-0">
+        <div class="py-2.5 border-b border-dashed border-divide last:border-b-0 last:pb-0" data-slug="{{ s.slug }}">
           <div class="text-[0.95rem] font-bold text-cream">
             <a class="text-ember no-underline hover:underline" href="/{{ s.slug }}/">{{ s.plugin_name }}</a>
             <span class="text-dim text-xs font-normal">[{{ s.slug }}]</span>
             {% if s.status.value == 'success' %}
-              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-blade">{{ s.status.value }}</span>
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-blade" data-role="status">{{ s.status.value }}</span>
             {% elif s.status.value == 'failed' %}
-              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-flame">{{ s.status.value }}</span>
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-flame" data-role="status">{{ s.status.value }}</span>
             {% elif s.status.value == 'running' %}
-              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-ember">{{ s.status.value }}</span>
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-ember" data-role="status">{{ s.status.value }}</span>
             {% elif s.status.value == 'skipped' %}
-              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-glow">{{ s.status.value }}</span>
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-glow" data-role="status">{{ s.status.value }}</span>
             {% else %}
-              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-dim">{{ s.status.value }}</span>
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-dim" data-role="status">{{ s.status.value }}</span>
             {% endif %}
           </div>
           <div class="my-1 text-xs">
             <span class="inline-block mr-5"><span class="text-dim">type</span> {{ s.plugin_type }}</span>
-            <span class="inline-block mr-5"><span class="text-dim">total</span> {{ s.total_syncs }}</span>
-            <span class="inline-block mr-5"><span class="text-dim">fail</span> {{ s.total_failures }}</span>
+            <span class="inline-block mr-5"><span class="text-dim">total</span> <span data-role="total">{{ s.total_syncs }}</span></span>
+            <span class="inline-block mr-5"><span class="text-dim">fail</span> <span data-role="fail">{{ s.total_failures }}</span></span>
             {% if s.last_sync %}
-            <span class="inline-block mr-5"><span class="text-dim">last</span> {{ s.last_sync|int|datetime }}</span>
+            <span class="inline-block mr-5"><span class="text-dim">last</span> <span data-role="last">{{ s.last_sync|int|datetime }}</span></span>
+            {% else %}
+            <span class="inline-block mr-5" style="display:none" data-role="last-wrap"><span class="text-dim">last</span> <span data-role="last">-</span></span>
             {% endif %}
             {% if s.status.value == 'running' and s.sync_started_at %}
-            <span class="inline-block mr-5 text-ember"><span class="text-dim">elapsed</span> {{ "%.0f"|format(now - s.sync_started_at) }}s</span>
+            <span class="inline-block mr-5 text-ember" data-role="elapsed-wrap"><span class="text-dim">elapsed</span> <span data-role="elapsed">{{ "%.0f"|format(now - s.sync_started_at) }}s</span></span>
             {% elif s.last_duration is not none %}
-            <span class="inline-block mr-5"><span class="text-dim">dur</span> {{ "%.1f"|format(s.last_duration) }}s</span>
+            <span class="inline-block mr-5" data-role="elapsed-wrap"><span class="text-dim">dur</span> <span data-role="elapsed">{{ "%.1f"|format(s.last_duration) }}s</span></span>
+            {% else %}
+            <span class="inline-block mr-5" style="display:none" data-role="elapsed-wrap"><span class="text-dim">dur</span> <span data-role="elapsed"></span></span>
             {% endif %}
             {% if s.total_bytes_transferred %}
-            <span class="inline-block mr-5"><span class="text-dim">xfer</span> {{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB</span>
+            <span class="inline-block mr-5"><span class="text-dim">xfer</span> <span data-role="xfer">{{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB</span></span>
+            {% else %}
+            <span class="inline-block mr-5" style="display:none" data-role="xfer-wrap"><span class="text-dim">xfer</span> <span data-role="xfer"></span></span>
+            {% endif %}
+            {% set sdl = dl_stats.get(s.slug, {}) %}
+            {% if sdl.get('total_downloads', 0) %}
+            <span class="inline-block mr-5"><span class="text-dim">dl</span> <span data-role="downloads">{{ sdl.total_downloads }}</span></span>
+            {% else %}
+            <span class="inline-block mr-5" style="display:none" data-role="downloads-wrap"><span class="text-dim">dl</span> <span data-role="downloads"></span></span>
+            {% endif %}
+            {% if sdl.get('total_bytes_served', 0) %}
+            <span class="inline-block mr-5"><span class="text-dim">served</span> <span data-role="served">{{ "%.1f"|format(sdl.total_bytes_served / 1073741824) }} GiB</span></span>
+            {% else %}
+            <span class="inline-block mr-5" style="display:none" data-role="served-wrap"><span class="text-dim">served</span> <span data-role="served"></span></span>
             {% endif %}
           </div>
 
-          {% if s.status.value == 'running' %}
-          <div class="my-1.5 flex items-center gap-x-2">
-            <span class="text-xs text-dim w-[4.5rem] shrink-0">progress</span>
-            <div class="bar flex-1"><div class="bar-fill bar-fill-ember" style="width:{{ s.progress_pct }}%"></div></div>
-            <span class="text-xs text-ember w-10 text-right">{{ s.progress_pct }}%</span>
+          <div data-role="progress-wrap" class="my-1.5 flex items-center gap-x-2"{% if s.status.value != 'running' %} style="display:none"{% endif %}>
+            <span class="text-xs text-dim w-18 shrink-0">progress</span>
+            <div class="bar flex-1"><div class="bar-fill-ember" data-role="progress-bar" style="width:{{ s.progress_pct }}%"></div></div>
+            <span class="text-xs text-ember w-10 text-right" data-role="progress-pct">{{ s.progress_pct }}%</span>
           </div>
-          {% endif %}
 
           {% if s.dir_size %}
-          <div class="my-1 text-xs">
-            <span class="inline-block"><span class="text-dim">size</span> {{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span>
+          <div class="my-1 text-xs" data-role="size-wrap">
+            <span class="inline-block"><span class="text-dim">size</span> <span data-role="size">{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span></span>
+          </div>
+          {% else %}
+          <div class="my-1 text-xs" style="display:none" data-role="size-wrap">
+            <span class="inline-block"><span class="text-dim">size</span> <span data-role="size"></span></span>
           </div>
           {% endif %}
 
           {% if s.last_error %}
-          <div class="my-1 text-xs">
-            <span class="inline-block mr-5 text-flame"><span class="text-dim">err</span> {{ s.last_error[:100] }}</span>
+          <div class="my-1 text-xs" data-role="error-wrap">
+            <span class="inline-block mr-5 text-flame"><span class="text-dim">err</span> <span data-role="error">{{ s.last_error[:100] }}</span></span>
+          </div>
+          {% else %}
+          <div class="my-1 text-xs" style="display:none" data-role="error-wrap">
+            <span class="inline-block mr-5 text-flame"><span class="text-dim">err</span> <span data-role="error"></span></span>
           </div>
           {% endif %}
           {% if s.description %}
@@ -134,7 +152,88 @@
     </div>
 
     <div class="mt-4 pt-3 border-t border-outline text-[0.7rem] text-muted">
-      mirrord v0.1.0 &mdash; loaded {{ now|int|datetime }}
+      mirrord v0.1.0 &mdash; loaded <span id="loaded-at">{{ now|int|datetime }}</span>
     </div>
+
+<script>
+(function(){
+var STATUS = {success:'text-blade',failed:'text-flame',running:'text-ember',skipped:'text-glow',idle:'text-dim'};
+var es = new EventSource("/api/stream");
+var GiB = 1073741824;
+var fmtTs = function(ts){var d=new Date(ts*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');};
+var fmtSecs = function(s){if(s>3600)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';if(s>60)return Math.floor(s/60)+'m '+Math.floor(s%60)+'s';return Math.floor(s)+'s';};
+var fmtGiB = function(b){return (b/GiB).toFixed(1)+' GiB';};
+var $ = function(s,r){return(r||document).querySelector(s);};
+var $$ = function(s,r){return(r||document).querySelectorAll(s);};
+
+es.onmessage = function(e){
+  var d = JSON.parse(e.data);
+  // Footer timestamp
+  $('loaded-at').textContent = fmtTs(d.now);
+  // Global stats
+  var tSync=0,tFail=0,tXfer=0,tRunning=0,tDl=0,tServed=0;
+  d.plugins.forEach(function(p){tSync+=p.total_syncs;tFail+=p.total_failures;tXfer+=p.total_bytes_transferred;if(p.status==='running')tRunning++;tDl+=p.total_downloads||0;tServed+=p.total_bytes_served||0;});
+  $('global-syncs').textContent = tSync;
+  $('global-fails').textContent = tFail;
+  $('global-xfer').textContent = fmtGiB(tXfer);
+  $('global-downloads').textContent = tDl;
+  $('global-served').textContent = fmtGiB(tServed);
+  var sr = $('global-syncing-row'), sv = $('global-syncing');
+  if(tRunning){sr.style.display='';sv.textContent=tRunning;}else{sr.style.display='none';}
+  // Next sync
+  if(d.next_sync_ts){
+    var nr=$('global-next-row'), nv=$('global-next'), secs=Math.floor(d.next_sync_ts-d.now);
+    nr.style.display=''; nv.textContent=secs>0?fmtSecs(secs):'imminent';
+  }
+  // Per-plugin cards
+  var maxSize=0;
+  d.plugins.forEach(function(p){if(p.dir_size>maxSize)maxSize=p.dir_size;});
+  d.plugins.forEach(function(p){
+    var card = $('[data-slug="'+p.slug+'"]');
+    if(!card)return;
+    // status badge
+    var st = $('[data-role="status"]',card);
+    if(st){st.textContent=p.status;st.className='inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase '+(STATUS[p.status]||'text-dim');}
+    // last sync
+    var lw=$('[data-role="last-wrap"]',card), lv=$('[data-role="last"]',card);
+    if(p.last_sync){if(lw)lw.style.display='';if(lv)lv.textContent=fmtTs(p.last_sync);}else{if(lw)lw.style.display='none';}
+    // elapsed/duration
+    var ew=$('[data-role="elapsed-wrap"]',card), ev=$('[data-role="elapsed"]',card);
+    if(p.status==='running'&&p.sync_started_at){if(ew){ew.style.display='';ew.className='inline-block mr-5 text-ember';}if(ev)ev.textContent=Math.floor(d.now-p.sync_started_at)+'s';}
+    else if(p.last_duration!==null&&p.last_duration!==undefined){if(ew){ew.style.display='';ew.className='inline-block mr-5';}if(ev)ev.textContent=p.last_duration.toFixed(1)+'s';}
+    else{if(ew)ew.style.display='none';}
+    // progress bar
+    var pw=$('[data-role="progress-wrap"]',card), pb=$('[data-role="progress-bar"]',card), pp=$('[data-role="progress-pct"]',card);
+    if(p.status==='running'){if(pw)pw.style.display='';if(pb)pb.style.width=p.progress_pct+'%';if(pp)pp.textContent=p.progress_pct+'%';}
+    else{if(pw)pw.style.display='none';}
+    // size
+    var sw=$('[data-role="size-wrap"]',card), sv2=$('[data-role="size"]',card);
+    if(p.dir_size){if(sw)sw.style.display='';if(sv2)sv2.textContent=fmtGiB(p.dir_size);}else{if(sw)sw.style.display='none';}
+    // xfer
+    var xw=$('[data-role="xfer-wrap"]',card), xv=$('[data-role="xfer"]',card);
+    if(p.total_bytes_transferred){if(xw)xw.style.display='';if(xv)xv.textContent=fmtGiB(p.total_bytes_transferred);}else{if(xw)xw.style.display='none';}
+    // downloads
+    var dw=$('[data-role="downloads-wrap"]',card), dv=$('[data-role="downloads"]',card);
+    if(p.total_downloads){if(dw)dw.style.display='';if(dv)dv.textContent=p.total_downloads;}else{if(dw)dw.style.display='none';}
+    // served
+    var sew=$('[data-role="served-wrap"]',card), sev=$('[data-role="served"]',card);
+    if(p.total_bytes_served){if(sew)sew.style.display='';if(sev)sev.textContent=fmtGiB(p.total_bytes_served);}else{if(sew)sew.style.display='none';}
+    // error
+    var errw=$('[data-role="error-wrap"]',card), errv=$('[data-role="error"]',card);
+    if(p.last_error){if(errw)errw.style.display='';if(errv)errv.textContent=p.last_error.substring(0,100);}else{if(errw)errw.style.display='none';}
+    // totals
+    var tv=$('[data-role="total"]',card), fv=$('[data-role="fail"]',card);
+    if(tv)tv.textContent=p.total_syncs; if(fv)fv.textContent=p.total_failures;
+    // mirror sizes chart
+    var sr2=$('#sizes-body [data-slug="'+p.slug+'"]');
+    if(sr2){
+      var sb=$('[data-role="size-bar"]',sr2), sv3=$('[data-role="size-val"]',sr2);
+      if(sb&&maxSize)sb.style.width=(p.dir_size/maxSize*100).toFixed(1)+'%';
+      if(sv3)sv3.textContent=fmtGiB(p.dir_size);
+    }
+  });
+};
+})();
+</script>
 </body>
 </html>

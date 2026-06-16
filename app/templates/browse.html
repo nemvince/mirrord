@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ browse_plugin }} — mirrord</title>
-  <meta http-equiv="refresh" content="30">
   <link rel="stylesheet" href="/static/output.css">
 </head>
 <body class="h-full flex flex-col py-4 mx-auto max-w-3xl px-4 lg:px-0">
@@ -64,48 +63,90 @@
   {% endif %}
 
   {% if browse_stats or disk_total or next_sync_ts %}
-  <div class="mb-6 border border-outline">
+  <div class="mb-6 border border-outline" id="info-panel">
     <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Info</div>
     <div class="p-3 text-xs">
       {% if disk_total %}
       {% set pct = (disk_used / disk_total * 100) if disk_total else 0 %}
-      Disk — Total: {{ "%.1f"|format(disk_total / 1073741824) }} GiB &middot; Used: {{ "%.1f"|format(disk_used / 1073741824) }} GiB &middot; Free: {{ "%.1f"|format(disk_free / 1073741824) }} GiB &middot; {{ "%.1f"|format(pct) }}%
-      <div class="bar my-1.5"><div class="bar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div></div>
+      Disk — Total: <span data-role="disk-total">{{ "%.1f"|format(disk_total / 1073741824) }}</span> GiB &middot; Used: <span data-role="disk-used">{{ "%.1f"|format(disk_used / 1073741824) }}</span> GiB &middot; Free: <span data-role="disk-free">{{ "%.1f"|format(disk_free / 1073741824) }}</span> GiB &middot; <span data-role="disk-pct">{{ "%.1f"|format(pct) }}</span>%
+      <div class="bar my-1.5"><div class="bar-fill" data-role="disk-bar" style="width:{{ "%.1f"|format(pct) }}%"></div></div>
       {% endif %}
 
       {% if browse_stats %}
       {% set s = browse_stats %}
       <div class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1">
-        <div class="flex justify-between"><span class="text-dim">Status</span><span class="{% if s.status.value == 'success' %}text-blade{% elif s.status.value == 'failed' %}text-flame{% elif s.status.value == 'running' %}text-ember{% else %}text-dim{% endif %}">{{ s.status.value }}</span></div>
-        {% if s.last_sync %}
-        <div class="flex justify-between"><span class="text-dim">Last Sync</span><span>{{ s.last_sync|int|datetime }}</span></div>
-        {% endif %}
-        {% if s.last_duration is not none %}
-        <div class="flex justify-between"><span class="text-dim">Duration</span><span>{{ "%.1f"|format(s.last_duration) }}s</span></div>
-        {% endif %}
-        {% if s.dir_size %}
-        <div class="flex justify-between"><span class="text-dim">Mirror Size</span><span>{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span></div>
-        {% endif %}
-        <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span>{{ s.total_syncs }}</span></div>
-        <div class="flex justify-between"><span class="text-dim">Failures</span><span>{{ s.total_failures }}</span></div>
-        {% if s.total_bytes_transferred %}
-        <div class="flex justify-between"><span class="text-dim">Transferred</span><span>{{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB</span></div>
-        {% endif %}
+        <div class="flex justify-between"><span class="text-dim">Status</span><span data-role="status" class="{% if s.status.value == 'success' %}text-blade{% elif s.status.value == 'failed' %}text-flame{% elif s.status.value == 'running' %}text-ember{% else %}text-dim{% endif %}">{{ s.status.value }}</span></div>
+        <div class="flex justify-between" data-role="last-row"{% if not s.last_sync %} style="display:none"{% endif %}><span class="text-dim">Last Sync</span><span data-role="last">{% if s.last_sync %}{{ s.last_sync|int|datetime }}{% endif %}</span></div>
+        <div class="flex justify-between" data-role="dur-row"{% if s.last_duration is none %} style="display:none"{% endif %}><span class="text-dim">Duration</span><span data-role="dur">{% if s.last_duration is not none %}{{ "%.1f"|format(s.last_duration) }}s{% endif %}</span></div>
+        <div class="flex justify-between" data-role="size-row"{% if not s.dir_size %} style="display:none"{% endif %}><span class="text-dim">Mirror Size</span><span data-role="size">{% if s.dir_size %}{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB{% endif %}</span></div>
+        <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span data-role="total">{{ s.total_syncs }}</span></div>
+        <div class="flex justify-between"><span class="text-dim">Failures</span><span data-role="fail">{{ s.total_failures }}</span></div>
+        <div class="flex justify-between" data-role="xfer-row"{% if not s.total_bytes_transferred %} style="display:none"{% endif %}><span class="text-dim">Transferred</span><span data-role="xfer">{% if s.total_bytes_transferred %}{{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB{% endif %}</span></div>
+        <div class="flex justify-between" data-role="dl-row"{% if not browse_dl_stats.get('total_downloads', 0) %} style="display:none"{% endif %}><span class="text-dim">Downloads</span><span data-role="downloads">{% if browse_dl_stats.get('total_downloads', 0) %}{{ browse_dl_stats.total_downloads }}{% endif %}</span></div>
+        <div class="flex justify-between" data-role="served-row"{% if not browse_dl_stats.get('total_bytes_served', 0) %} style="display:none"{% endif %}><span class="text-dim">Served</span><span data-role="served">{% if browse_dl_stats.get('total_bytes_served', 0) %}{{ "%.1f"|format(browse_dl_stats.total_bytes_served / 1073741824) }} GiB{% endif %}</span></div>
       </div>
       {% endif %}
 
-      {% if next_sync_ts %}
-      {% set secs = (next_sync_ts - now)|int %}
-      <div class="mt-2">
-        Next sync: {% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% elif secs > 0 %}{{ secs }}s{% else %}imminent{% endif %}
+      <div class="mt-2" id="next-sync-row"{% if not next_sync_ts %} style="display:none"{% endif %}>
+        Next sync: <span id="next-sync">{% if next_sync_ts %}{% set secs = (next_sync_ts - now)|int %}{% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% elif secs > 0 %}{{ secs }}s{% else %}imminent{% endif %}{% endif %}</span>
       </div>
-      {% endif %}
     </div>
   </div>
   {% endif %}
 
   <div class="mt-4 pt-3 border-t border-outline text-[0.7rem] text-muted">
-    mirrord v0.1.0 &mdash; loaded {{ now|int|datetime }}
+    mirrord v0.1.0 &mdash; loaded <span id="loaded-at">{{ now|int|datetime }}</span>
   </div>
+
+<script>
+(function(){
+var STATUS = {success:'text-blade',failed:'text-flame',running:'text-ember',skipped:'text-glow',idle:'text-dim'};
+var SLUG = "{{ browse_slug }}";
+var GiB = 1073741824;
+var fmtTs = function(ts){var d=new Date(ts*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');};
+var fmtSecs = function(s){if(s>3600)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';if(s>60)return Math.floor(s/60)+'m '+Math.floor(s%60)+'s';return Math.floor(s)+'s';};
+var fmtGiB = function(b){return (b/GiB).toFixed(1)+' GiB';};
+var $ = function(s,r){return(r||document).querySelector(s);};
+
+var es = new EventSource("/api/stream");
+es.onmessage = function(e){
+  var d = JSON.parse(e.data);
+  $('loaded-at').textContent = fmtTs(d.now);
+  // Next sync
+  if(d.next_sync_ts){
+    var nr=$('next-sync-row'), nv=$('next-sync'), secs=Math.floor(d.next_sync_ts-d.now);
+    nr.style.display=''; nv.textContent=secs>0?fmtSecs(secs):'imminent';
+  }
+  // Find this plugin in the stream
+  var p = null;
+  for(var i=0;i<d.plugins.length;i++){if(d.plugins[i].slug===SLUG){p=d.plugins[i];break;}}
+  if(!p)return;
+  // Status
+  var st=$('[data-role="status"]');
+  if(st){st.textContent=p.status;st.className=(STATUS[p.status]||'text-dim');}
+  // Last sync
+  var lr=$('[data-role="last-row"]'), lv=$('[data-role="last"]');
+  if(p.last_sync){lr.style.display='';lv.textContent=fmtTs(p.last_sync);}else{lr.style.display='none';}
+  // Duration
+  var dr=$('[data-role="dur-row"]'), dv=$('[data-role="dur"]');
+  if(p.last_duration!==null&&p.last_duration!==undefined){dr.style.display='';dv.textContent=p.last_duration.toFixed(1)+'s';}else{dr.style.display='none';}
+  // Size
+  var sr=$('[data-role="size-row"]'), sv=$('[data-role="size"]');
+  if(p.dir_size){sr.style.display='';sv.textContent=fmtGiB(p.dir_size);}else{sr.style.display='none';}
+  // Totals
+  var tv=$('[data-role="total"]'), fv=$('[data-role="fail"]');
+  if(tv)tv.textContent=p.total_syncs; if(fv)fv.textContent=p.total_failures;
+  // Xfer
+  var xr=$('[data-role="xfer-row"]'), xv=$('[data-role="xfer"]');
+  if(p.total_bytes_transferred){xr.style.display='';xv.textContent=fmtGiB(p.total_bytes_transferred);}else{xr.style.display='none';}
+  // Downloads
+  var dlr=$('[data-role="dl-row"]'), dlv=$('[data-role="downloads"]');
+  if(p.total_downloads){dlr.style.display='';dlv.textContent=p.total_downloads;}else{dlr.style.display='none';}
+  // Served
+  var svr=$('[data-role="served-row"]'), svv=$('[data-role="served"]');
+  if(p.total_bytes_served){svr.style.display='';svv.textContent=fmtGiB(p.total_bytes_served);}else{svr.style.display='none';}
+};
+})();
+</script>
 </body>
 </html>

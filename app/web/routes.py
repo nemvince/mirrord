@@ -1,3 +1,5 @@
+import asyncio
+import json
 import os
 import shutil
 import time
@@ -7,7 +9,7 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, StreamingResponse
 
 from app.sync_engine import SyncEngine
 
@@ -40,6 +42,14 @@ def _format_size(size: int) -> str:
 
 def _format_mtime(ts: float) -> str:
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _safe_getsize(path: str) -> int:
+    """Return file size, or 0 if the file can't be stat'd (e.g. deleted mid-request)."""
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
 
 
 def _disk_usage_for_plugin(plugin) -> tuple[int, int, int]:
@@ -76,6 +86,7 @@ def _browse_context(slug: str, subpath: str) -> dict:
 
     ctx["browse_plugin"] = plugin.stats.plugin_name
     ctx["browse_stats"] = plugin.stats.snapshot()
+    ctx["browse_dl_stats"] = _engine.get_download_stats().get(slug, {})
 
     target = plugin.target_dir.resolve()
     if not target.exists():
@@ -156,6 +167,10 @@ async def index(request: Request):
     total_bytes = sum(s.total_bytes_transferred for s in stats)
     now_syncing = sum(1 for s in stats if s.status.value == "running")
 
+    dl_stats = _engine.get_download_stats() if _engine else {}
+    total_downloads = sum(d.get("total_downloads", 0) for d in dl_stats.values())
+    total_bytes_served = sum(d.get("total_bytes_served", 0) for d in dl_stats.values())
+
     ctx = {
         "now": time.time(),
         "stats": stats,
@@ -168,51 +183,21 @@ async def index(request: Request):
         "total_bytes": total_bytes,
         "now_syncing": now_syncing,
         "max_dir_size": max((s.dir_size for s in stats), default=0),
+        "total_downloads": total_downloads,
+        "total_bytes_served": total_bytes_served,
+        "dl_stats": dl_stats,
     }
     return request.app.state.templates.TemplateResponse(request, "index.html", ctx)
-
-
-@router.get("/{slug}", response_class=HTMLResponse)
-async def browse_redirect(request: Request, slug: str):
-    if not _valid_slug(slug):
-        return Response(status_code=404)
-    return RedirectResponse(url=f"/{slug}/", status_code=301)
-
-
-@router.get("/{slug}/", response_class=HTMLResponse)
-async def browse_root(request: Request, slug: str):
-    if not _valid_slug(slug):
-        return Response(status_code=404)
-    ctx = _browse_context(slug, "/")
-    if ctx.get("is_file"):
-        return FileResponse(ctx["file_path"])
-    if ctx.get("browse_error"):
-        status = 404 if "not found" in ctx["browse_error"].lower() else 500
-        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
-    ctx["now"] = time.time()
-    return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
-
-
-@router.get("/{slug}/{rest:path}", response_class=HTMLResponse)
-async def browse_path(request: Request, slug: str, rest: str):
-    if not _valid_slug(slug):
-        return Response(status_code=404)
-    ctx = _browse_context(slug, rest)
-    if ctx.get("is_file"):
-        return FileResponse(ctx["file_path"])
-    if ctx.get("browse_error"):
-        status = 404 if "not found" in ctx["browse_error"].lower() else 500
-        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
-    ctx["now"] = time.time()
-    return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 
 
 @router.get("/api/stats")
 async def api_stats():
     if _engine is None:
         return {"plugins": [], "next_sync_ts": None}
+    dl_stats = _engine.get_download_stats()
     plugins = []
     for s in _engine.get_all_stats():
+        dl = dl_stats.get(s.slug, {})
         plugins.append({
             "name": s.plugin_name,
             "slug": s.slug,
@@ -229,11 +214,59 @@ async def api_stats():
             "total_syncs": s.total_syncs,
             "total_failures": s.total_failures,
             "total_bytes_transferred": s.total_bytes_transferred,
+            "total_downloads": dl.get("total_downloads", 0),
+            "total_bytes_served": dl.get("total_bytes_served", 0),
+            "last_download": dl.get("last_download"),
+            "top_files": dl.get("top_files", []),
         })
+    total_downloads = sum(p["total_downloads"] for p in plugins)
+    total_bytes_served = sum(p["total_bytes_served"] for p in plugins)
     return {
         "plugins": plugins,
         "next_sync_ts": _engine.get_next_sync_time(),
+        "total_downloads": total_downloads,
+        "total_bytes_served": total_bytes_served,
     }
+
+
+@router.get("/api/stream")
+async def api_stream():
+    """Server-Sent Events: pushes stats every 2 seconds for live dashboard."""
+
+    async def event_stream():
+        while True:
+            await asyncio.sleep(2)
+            if _engine is None:
+                continue
+            stats = _engine.get_all_stats()
+            dl_stats = _engine.get_download_stats()
+            payload = {
+                "now": time.time(),
+                "plugins": [
+                    {
+                        "slug": s.slug,
+                        "status": s.status.value,
+                        "last_sync": s.last_sync,
+                        "last_duration": s.last_duration,
+                        "last_error": s.last_error,
+                        "total_syncs": s.total_syncs,
+                        "total_failures": s.total_failures,
+                        "total_bytes_transferred": s.total_bytes_transferred,
+                        "sync_started_at": s.sync_started_at,
+                        "progress_pct": s.progress_pct,
+                        "dir_size": s.dir_size,
+                        "total_downloads": dl_stats.get(s.slug, {}).get("total_downloads", 0),
+                        "total_bytes_served": dl_stats.get(s.slug, {}).get("total_bytes_served", 0),
+                        "last_download": dl_stats.get(s.slug, {}).get("last_download"),
+                        "top_files": dl_stats.get(s.slug, {}).get("top_files", []),
+                    }
+                    for s in stats
+                ],
+                "next_sync_ts": _engine.get_next_sync_time(),
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/api/browse/{plugin_name}")
@@ -290,3 +323,42 @@ async def api_browse(plugin_name: str, q: str = Query(default="")):
         "parent": parent_str,
         "entries": entries,
     }
+
+
+@router.get("/{slug}", response_class=HTMLResponse)
+async def browse_redirect(request: Request, slug: str):
+    if not _valid_slug(slug):
+        return Response(status_code=404)
+    return RedirectResponse(url=f"/{slug}/", status_code=301)
+
+
+@router.get("/{slug}/", response_class=HTMLResponse)
+async def browse_root(request: Request, slug: str):
+    if not _valid_slug(slug):
+        return Response(status_code=404)
+    ctx = _browse_context(slug, "/")
+    if ctx.get("is_file"):
+        if _engine:
+            _engine.record_download(slug, "/", _safe_getsize(ctx["file_path"]))
+        return FileResponse(ctx["file_path"])
+    if ctx.get("browse_error"):
+        status = 404 if "not found" in ctx["browse_error"].lower() else 500
+        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
+    ctx["now"] = time.time()
+    return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
+
+
+@router.get("/{slug}/{rest:path}", response_class=HTMLResponse)
+async def browse_path(request: Request, slug: str, rest: str):
+    if not _valid_slug(slug):
+        return Response(status_code=404)
+    ctx = _browse_context(slug, rest)
+    if ctx.get("is_file"):
+        if _engine:
+            _engine.record_download(slug, "/" + rest, _safe_getsize(ctx["file_path"]))
+        return FileResponse(ctx["file_path"])
+    if ctx.get("browse_error"):
+        status = 404 if "not found" in ctx["browse_error"].lower() else 500
+        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
+    ctx["now"] = time.time()
+    return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)

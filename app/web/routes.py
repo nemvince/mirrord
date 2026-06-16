@@ -75,6 +75,7 @@ def _browse_context(slug: str, subpath: str) -> dict:
         return ctx
 
     ctx["browse_plugin"] = plugin.stats.plugin_name
+    ctx["browse_stats"] = plugin.stats.snapshot()
 
     target = plugin.target_dir.resolve()
     if not target.exists():
@@ -165,6 +166,7 @@ async def index(request: Request):
         "total_failures": total_failures,
         "total_bytes": total_bytes,
         "now_syncing": now_syncing,
+        "max_dir_size": max((s.dir_size for s in stats), default=0),
     }
     return request.app.state.templates.TemplateResponse(request, "index.html", ctx)
 

@@ -63,7 +63,7 @@
   </div>
   {% endif %}
 
-  {% if disk_total or next_sync_ts %}
+  {% if browse_stats or disk_total or next_sync_ts %}
   <div class="mb-6 border border-outline">
     <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Info</div>
     <div class="p-3 text-xs">
@@ -72,9 +72,31 @@
       Disk — Total: {{ "%.1f"|format(disk_total / 1073741824) }} GiB &middot; Used: {{ "%.1f"|format(disk_used / 1073741824) }} GiB &middot; Free: {{ "%.1f"|format(disk_free / 1073741824) }} GiB &middot; {{ "%.1f"|format(pct) }}%
       <div class="bar my-1.5"><div class="bar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div></div>
       {% endif %}
+
+      {% if browse_stats %}
+      {% set s = browse_stats %}
+      <div class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1">
+        <div class="flex justify-between"><span class="text-dim">Status</span><span class="{% if s.status.value == 'success' %}text-blade{% elif s.status.value == 'failed' %}text-flame{% elif s.status.value == 'running' %}text-ember{% else %}text-dim{% endif %}">{{ s.status.value }}</span></div>
+        {% if s.last_sync %}
+        <div class="flex justify-between"><span class="text-dim">Last Sync</span><span>{{ s.last_sync|int|datetime }}</span></div>
+        {% endif %}
+        {% if s.last_duration is not none %}
+        <div class="flex justify-between"><span class="text-dim">Duration</span><span>{{ "%.1f"|format(s.last_duration) }}s</span></div>
+        {% endif %}
+        {% if s.dir_size %}
+        <div class="flex justify-between"><span class="text-dim">Mirror Size</span><span>{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span></div>
+        {% endif %}
+        <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span>{{ s.total_syncs }}</span></div>
+        <div class="flex justify-between"><span class="text-dim">Failures</span><span>{{ s.total_failures }}</span></div>
+        {% if s.total_bytes_transferred %}
+        <div class="flex justify-between"><span class="text-dim">Transferred</span><span>{{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB</span></div>
+        {% endif %}
+      </div>
+      {% endif %}
+
       {% if next_sync_ts %}
       {% set secs = (next_sync_ts - now)|int %}
-      <div class="mt-1">
+      <div class="mt-2">
         Next sync: {% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% elif secs > 0 %}{{ secs }}s{% else %}imminent{% endif %}
       </div>
       {% endif %}

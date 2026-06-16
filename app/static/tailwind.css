@@ -59,3 +59,15 @@
   background-color: var(--color-ember);
   transition: width 0.4s;
 }
+
+@utility bar-fill-blade {
+  height: 100%;
+  background-color: var(--color-blade);
+  transition: width 0.4s;
+}
+
+@utility bar-fill-flame {
+  height: 100%;
+  background-color: var(--color-flame);
+  transition: width 0.4s;
+}

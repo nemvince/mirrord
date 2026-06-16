@@ -47,6 +47,24 @@
     </div>
     {% endif %}
 
+    {% if stats %}
+    {% set charts = stats|selectattr('dir_size', 'gt', 0)|list %}
+    {% if charts %}
+    <div class="mb-6 border border-outline">
+      <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Mirror Sizes</div>
+      <div class="p-3 text-xs">
+        {% for s in charts %}
+        <div class="flex items-center gap-x-3 py-1">
+          <span class="w-32 shrink-0 truncate text-cream">{{ s.plugin_name }}</span>
+          <div class="bar flex-1"><div class="bar-fill" style="width:{{ "%.1f"|format(s.dir_size / max_dir_size * 100) if max_dir_size else 0 }}%"></div></div>
+          <span class="w-20 text-right text-dim">{{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
     <div class="mb-6 border border-outline">
       <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Mirrors</div>
       <div class="p-3">

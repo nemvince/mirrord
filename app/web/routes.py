@@ -7,7 +7,7 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from app.sync_engine import SyncEngine
 
@@ -97,7 +97,8 @@ def _browse_context(slug: str, subpath: str) -> dict:
         ctx["browse_error"] = "Path not found"
         return ctx
     if requested.is_file():
-        ctx["browse_error"] = "Cannot browse into a file"
+        ctx["is_file"] = True
+        ctx["file_path"] = str(requested)
         return ctx
 
     display_path = "/" + str(rel_path) if rel_path != Path(".") else "/"
@@ -111,7 +112,7 @@ def _browse_context(slug: str, subpath: str) -> dict:
             except OSError:
                 stat = None
             entry_path = f"/{entry.name}" if display_path == "/" else f"{display_path}/{entry.name}"
-            href = f"/{slug}{quote(entry_path, safe='/')}" if entry.is_dir() else None
+            href = f"/{slug}{quote(entry_path, safe='/')}"
             entries.append({
                 "name": entry.name,
                 "type": "dir" if entry.is_dir() else "file",
@@ -183,6 +184,8 @@ async def browse_root(request: Request, slug: str):
     if not _valid_slug(slug):
         return Response(status_code=404)
     ctx = _browse_context(slug, "/")
+    if ctx.get("is_file"):
+        return FileResponse(ctx["file_path"])
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 
@@ -192,6 +195,8 @@ async def browse_path(request: Request, slug: str, rest: str):
     if not _valid_slug(slug):
         return Response(status_code=404)
     ctx = _browse_context(slug, rest)
+    if ctx.get("is_file"):
+        return FileResponse(ctx["file_path"])
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 

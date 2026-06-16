@@ -48,7 +48,7 @@
               <td class="py-1 px-2 border-b border-divide"><a class="text-glow no-underline hover:underline" href="{{ entry.href }}">{{ entry.name }}/</a></td>
               <td class="text-right py-1 px-2 border-b border-divide text-dim whitespace-nowrap">&mdash;</td>
             {% else %}
-              <td class="py-1 px-2 border-b border-divide">{{ entry.name }}</td>
+              <td class="py-1 px-2 border-b border-divide"><a class="text-cream no-underline hover:underline" href="{{ entry.href }}">{{ entry.name }}</a></td>
               <td class="text-right py-1 px-2 border-b border-divide text-dim whitespace-nowrap">{{ entry.size_fmt }}</td>
             {% endif %}
             <td class="py-1 px-2 border-b border-divide text-dim whitespace-nowrap">{{ entry.mtime_fmt }}</td>

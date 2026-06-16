@@ -132,7 +132,6 @@ class ArchRsyncPlugin(BaseSyncPlugin):
 
         cmd += [
             "-rlptH",
-            "--safe-links",
             "--delete-delay",
             "--delay-updates",
             "--timeout=600",

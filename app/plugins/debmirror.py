@@ -36,7 +36,8 @@ class DebMirrorPlugin(BaseSyncPlugin):
         self.source = self.config.get("source", False)
         self.ignore_release_gpg = self.config.get("ignore_release_gpg", True)
         self.lock_path = (
-            Path(self.config.get("lock_dir", "/tmp/mirrord")) / "debmirror.lck"
+            Path(self.config.get("lock_dir", "/tmp/mirrord"))
+            / f"{self.config.get('slug', 'debmirror')}.lck"
         )
         self._proc_lock = threading.Lock()
 

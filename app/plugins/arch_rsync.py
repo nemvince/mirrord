@@ -32,7 +32,8 @@ class ArchRsyncPlugin(BaseSyncPlugin):
         self.bwlimit = self.config.get("bwlimit", 0)
         self.excludes = self.config.get("excludes", [])
         self.lock_path = (
-            Path(self.config.get("lock_dir", "/tmp/mirrord")) / "arch_rsync.lck"
+            Path(self.config.get("lock_dir", "/tmp/mirrord"))
+            / f"{self.config.get('slug', 'arch_rsync')}.lck"
         )
         self._proc_lock = threading.Lock()
 

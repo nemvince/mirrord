@@ -7,3 +7,4 @@ app/static/output.css
 node_modules
 .reasonix
 reasonix.toml
+.codegraph

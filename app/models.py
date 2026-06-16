@@ -4,7 +4,6 @@ import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Optional
 
 
@@ -85,16 +84,19 @@ class SyncJobStats:
         try:
             os.makedirs(os.path.dirname(self._stats_path), exist_ok=True)
             with open(self._stats_path, "w") as f:
-                json.dump({
-                    "total_syncs": self.total_syncs,
-                    "total_failures": self.total_failures,
-                    "total_bytes_transferred": self.total_bytes_transferred,
-                    "dir_size": self.dir_size,
-                    "last_sync": self.last_sync,
-                    "last_duration": self.last_duration,
-                    "last_size_bytes": self.last_size_bytes,
-                    "last_error": self.last_error,
-                }, f)
+                json.dump(
+                    {
+                        "total_syncs": self.total_syncs,
+                        "total_failures": self.total_failures,
+                        "total_bytes_transferred": self.total_bytes_transferred,
+                        "dir_size": self.dir_size,
+                        "last_sync": self.last_sync,
+                        "last_duration": self.last_duration,
+                        "last_size_bytes": self.last_size_bytes,
+                        "last_error": self.last_error,
+                    },
+                    f,
+                )
         except OSError:
             pass
 

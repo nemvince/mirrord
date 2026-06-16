@@ -3,10 +3,11 @@ import logging
 import os
 import socket
 import threading
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.config import get_config
+from app.config import get_config, reload_config
 from app.plugins.registry import get_plugin
 
 logger = logging.getLogger("mirrord.sync")
@@ -23,12 +24,15 @@ class SyncEngine:
         self._stop_event = threading.Event()
         self._socket_thread = None
         self._started = False
+        self._config_mtime: float = 0
+        self._reload_lock = threading.Lock()
 
     def start(self) -> None:
         if self._started:
             logger.warning("Sync engine already started, ignoring duplicate start()")
             return
         self._started = True
+        self._record_config_mtime()
         self._init_plugins()
         interval = self.config.sync.interval
         self.scheduler.add_job(
@@ -40,6 +44,7 @@ class SyncEngine:
         )
         self.scheduler.start()
         self._start_control_socket()
+        self._start_config_watcher()
         logger.info("Sync engine started (interval=%ds, plugins=%d)", interval, len(self.plugins))
 
     def stop(self) -> None:
@@ -61,9 +66,68 @@ class SyncEngine:
             self._plugin_locks[plugin.stats.slug] = threading.Lock()
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
 
+    # ── config hot-reload ──────────────────────────────────────────
+
+    def _record_config_mtime(self) -> None:
+        try:
+            self._config_mtime = os.path.getmtime(self.config.path)
+        except OSError:
+            self._config_mtime = 0
+
+    def _start_config_watcher(self) -> None:
+        """Poll config.yaml every 10s; hot-reload when mtime changes."""
+        def _watch() -> None:
+            while not self._stop_event.wait(10):
+                try:
+                    mtime = os.path.getmtime(self.config.path)
+                except OSError:
+                    continue
+                if mtime != self._config_mtime:
+                    logger.info("Config file changed, reloading...")
+                    self._reload_engine()
+        thread = threading.Thread(target=_watch, daemon=True, name="config-watcher")
+        thread.start()
+
+    def _reload_engine(self) -> None:
+        """Stop plugins, reload config, re-init with new settings."""
+        with self._reload_lock:
+            try:
+                new_config = reload_config()
+            except Exception as e:
+                logger.error("Failed to reload config: %s", e)
+                return
+
+            logger.info("Stopping %d plugins for reload...", len(self.plugins))
+            for plugin in self.plugins:
+                plugin.stop()
+            self.plugins.clear()
+            self._plugin_locks.clear()
+
+            self.config = new_config
+            self._record_config_mtime()
+            self._init_plugins()
+
+            # Reschedule with potentially new interval
+            self.scheduler.remove_job("sync_all")
+            self.scheduler.add_job(
+                self._run_all,
+                "interval",
+                seconds=self.config.sync.interval,
+                id="sync_all",
+                max_instances=1,
+            )
+            logger.info(
+                "Config reloaded (interval=%ds, plugins=%d)",
+                self.config.sync.interval,
+                len(self.plugins),
+            )
+
     def _run_all(self) -> None:
         for plugin in self.plugins:
-            self._run_plugin(plugin)
+            thread = threading.Thread(
+                target=self._run_plugin, args=(plugin,), daemon=True
+            )
+            thread.start()
 
     def _run_plugin(self, plugin) -> None:
         lock = self._plugin_locks.get(plugin.stats.slug)

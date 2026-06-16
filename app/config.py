@@ -40,6 +40,7 @@ class ServerConfig:
 
 class Config:
     def __init__(self, path: str = "config.yaml"):
+        self.path = path
         try:
             with open(path, encoding="utf-8") as f:
                 raw = yaml.safe_load(f) or {}
@@ -77,3 +78,12 @@ def get_config() -> Config:
         if _config is None:
             _config = load_config()
         return _config
+
+
+def reload_config() -> Config:
+    """Reload config from the same path used originally. Returns the new Config."""
+    global _config
+    with _config_lock:
+        path = _config.path if _config else "config.yaml"
+        _config = Config(path)
+    return _config

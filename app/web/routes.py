@@ -186,6 +186,9 @@ async def browse_root(request: Request, slug: str):
     ctx = _browse_context(slug, "/")
     if ctx.get("is_file"):
         return FileResponse(ctx["file_path"])
+    if ctx.get("browse_error"):
+        status = 404 if "not found" in ctx["browse_error"].lower() else 500
+        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 
@@ -197,6 +200,9 @@ async def browse_path(request: Request, slug: str, rest: str):
     ctx = _browse_context(slug, rest)
     if ctx.get("is_file"):
         return FileResponse(ctx["file_path"])
+    if ctx.get("browse_error"):
+        status = 404 if "not found" in ctx["browse_error"].lower() else 500
+        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 

@@ -6,7 +6,7 @@ services:
       - "8080:8080"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - /home/nya/mirrors:/data
+      - ./mirrors:/data
     restart: unless-stopped
     environment:
       - MIRRORD_CONFIG=config.yaml

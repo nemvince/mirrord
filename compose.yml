@@ -1,0 +1,16 @@
+# Production compose file — pulls the latest published image from ghcr.io.
+# Replace "you" below with your GitHub username or org.
+#
+#   docker compose up -d
+
+services:
+  mirrord:
+    image: ghcr.io/nemvince/mirrord:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - /mirrors:/data
+    restart: unless-stopped
+    environment:
+      - MIRRORD_CONFIG=config.yaml

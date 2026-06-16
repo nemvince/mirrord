@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+data/
+.git/
+.gitignore
+Dockerfile
+docker-compose.yml
+.venv/
+*.egg-info/

@@ -1,0 +1,79 @@
+# mirrord configuration
+#
+# All mirrors listed below are publicly accessible — no special
+# access or registration required.  See comments for tuning.
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+sync:
+  # How often to run sync jobs (in seconds).  6–24 h recommended
+  # for public mirrors — be kind to upstream bandwidth.
+  interval: 21600
+  # Directory to store lock files
+  lock_dir: "/tmp/mirrord"
+
+plugins:
+  # ── Arch Linux (Tier 2 public mirror) ──────────────────────────
+  - type: arch_rsync
+    enabled: true
+    name: "Arch Linux"
+    slug: "archlinux"
+    description: |
+      Arch Linux package mirror (core, extra, community, multilib).
+      Public Tier‑2 rsync — no registration needed.
+      ~80–100 GiB with sources excluded.
+    config:
+      target: "/data/archlinux"
+      source_url: "rsync://mirrors.kernel.org/archlinux"
+      tls: false         # public mirrors use plain rsync, not rsync-ssl
+      bwlimit: 4096      # KiB/s — leave 0 for unlimited
+      excludes:
+        - "*.links.tar.gz*"
+        - "/other"
+        - "/sources"
+
+  # ── Debian (HTTP via debmirror) ─────────────────────────────────
+  - type: debmirror
+    enabled: true
+    name: "Debian (HTTP)"
+    slug: "debian-http"
+    description: |
+      Debian package mirror over HTTP — no rsync needed.
+      Downloads bookworm (stable), amd64 only, no sources.
+      Requires `debmirror` on the host (apt install debmirror).
+    config:
+      target: "/data/debian-http"
+      host: "ftp.debian.org"
+      root: "/debian"
+      dists: "bookworm,bookworm-updates"
+      sections: "main,contrib,non-free,non-free-firmware"
+      archs: "amd64"
+      ignore_release_gpg: true
+
+  # ── Debian (rsync) ──────────────────────────────────────────────
+  - type: arch_rsync
+    enabled: true
+    name: "Debian"
+    slug: "debian"
+    description: |
+      Debian package repository (stable).
+      Public rsync mirror — no registration needed.
+    config:
+      target: "/data/debian"
+      source_url: "rsync://ftp.debian.org/debian"
+      tls: false
+      bwlimit: 4096
+      excludes:
+        - "*.links.tar.gz*"
+        - "/project"
+        - "/tools"
+        - "/ls-lR.gz"
+
+  # Add more mirrors below by copying a block above and adjusting
+  # type, name, slug, and config.
+  #
+  # Supported plugin types:
+  #   arch_rsync  — rsync-based mirror (Arch, Debian, Ubuntu, …)
+  #   debmirror   — HTTP-based Debian mirror (uses debmirror tool)

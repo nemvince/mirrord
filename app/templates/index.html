@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" class="h-dvh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mirrord — Mirror Dashboard</title>
+  <meta http-equiv="refresh" content="30">
+  <link rel="stylesheet" href="/static/output.css">
+</head>
+<body class="h-full flex flex-col py-4 mx-auto max-w-3xl px-4 lg:px-0">
+    <div class="mb-8 pb-3 border-b border-outline">
+      <h1 class="text-2xl text-cream font-bold">mirrord</h1>
+      <span class="text-dim text-xs">mirror sync server</span>
+    </div>
+
+    {% if disk_total or stats %}
+    <div class="mb-6 border border-outline">
+      <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Global</div>
+      <div class="p-3">
+        <div class="grid grid-cols-2 max-sm:grid-cols-1 gap-x-6 gap-y-2">
+          {% if disk_total %}
+          <div class="flex justify-between"><span class="text-dim">Disk Total</span><span>{{ "%.1f"|format(disk_total / 1073741824) }} GiB</span></div>
+          <div class="flex justify-between"><span class="text-dim">Disk Used</span><span>{{ "%.1f"|format(disk_used / 1073741824) }} GiB</span></div>
+          <div class="flex justify-between"><span class="text-dim">Disk Free</span><span>{{ "%.1f"|format(disk_free / 1073741824) }} GiB</span></div>
+          {% set pct = (disk_used / disk_total * 100) if disk_total else 0 %}
+          <div class="flex justify-between"><span class="text-dim">Usage</span><span>{{ "%.1f"|format(pct) }}%</span></div>
+          {% endif %}
+          {% if stats %}
+          <div class="flex justify-between"><span class="text-dim">Mirrors</span><span>{{ stats|length }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span>{{ total_syncs }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Failures</span><span>{{ total_failures }}</span></div>
+          <div class="flex justify-between"><span class="text-dim">Transferred</span><span>{{ "%.1f"|format(total_bytes / 1073741824) }} GiB</span></div>
+          {% if now_syncing %}
+          <div class="flex justify-between"><span class="text-dim">Syncing Now</span><span>{{ now_syncing }}</span></div>
+          {% endif %}
+          {% if next_sync_ts %}
+          {% set secs = (next_sync_ts - now)|int %}
+          <div class="flex justify-between"><span class="text-dim">Next Sync</span><span>{% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% else %}{{ secs }}s{% endif %}</span></div>
+          {% endif %}
+          {% endif %}
+        </div>
+        {% if disk_total %}
+        {% set pct = (disk_used / disk_total * 100) if disk_total else 0 %}
+        <div class="bar"><div class="bar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="mb-6 border border-outline">
+      <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Mirrors</div>
+      <div class="p-3">
+        {% for s in stats %}
+        <div class="py-2.5 border-b border-dashed border-divide last:border-b-0 last:pb-0">
+          <div class="text-[0.95rem] font-bold text-cream">
+            <a class="text-ember no-underline hover:underline" href="/{{ s.slug }}/">{{ s.plugin_name }}</a>
+            <span class="text-dim text-xs font-normal">[{{ s.slug }}]</span>
+            {% if s.status.value == 'success' %}
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-blade">{{ s.status.value }}</span>
+            {% elif s.status.value == 'failed' %}
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-flame">{{ s.status.value }}</span>
+            {% elif s.status.value == 'running' %}
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-ember">{{ s.status.value }}</span>
+            {% elif s.status.value == 'skipped' %}
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-glow">{{ s.status.value }}</span>
+            {% else %}
+              <span class="inline-block text-[0.7rem] font-bold px-[0.45rem] py-[0.1rem] uppercase text-dim">{{ s.status.value }}</span>
+            {% endif %}
+          </div>
+          <div class="my-1 text-xs">
+            <span class="inline-block mr-5"><span class="text-dim">type</span> {{ s.plugin_type }}</span>
+            <span class="inline-block mr-5"><span class="text-dim">total</span> {{ s.total_syncs }}</span>
+            <span class="inline-block mr-5"><span class="text-dim">fail</span> {{ s.total_failures }}</span>
+            {% if s.last_sync %}
+            <span class="inline-block mr-5"><span class="text-dim">last</span> {{ s.last_sync|int|datetime }}</span>
+            {% endif %}
+            {% if s.status.value == 'running' and s.sync_started_at %}
+            <span class="inline-block mr-5 text-ember"><span class="text-dim">elapsed</span> {{ "%.0f"|format(now - s.sync_started_at) }}s</span>
+            {% elif s.last_duration is not none %}
+            <span class="inline-block mr-5"><span class="text-dim">dur</span> {{ "%.1f"|format(s.last_duration) }}s</span>
+            {% endif %}
+            {% if s.total_bytes_transferred %}
+            <span class="inline-block mr-5"><span class="text-dim">xfer</span> {{ "%.1f"|format(s.total_bytes_transferred / 1073741824) }} GiB</span>
+            {% endif %}
+          </div>
+
+          {% if s.status.value == 'running' %}
+          <div class="my-1.5 flex items-center gap-x-2">
+            <span class="text-xs text-dim w-[4.5rem] shrink-0">progress</span>
+            <div class="bar flex-1"><div class="bar-fill bar-fill-ember" style="width:{{ s.progress_pct }}%"></div></div>
+            <span class="text-xs text-ember w-10 text-right">{{ s.progress_pct }}%</span>
+          </div>
+          {% endif %}
+
+          {% if s.dir_size %}
+          <div class="my-1 text-xs">
+            <span class="inline-block"><span class="text-dim">size</span> {{ "%.1f"|format(s.dir_size / 1073741824) }} GiB</span>
+          </div>
+          {% endif %}
+
+          {% if s.last_error %}
+          <div class="my-1 text-xs">
+            <span class="inline-block mr-5 text-flame"><span class="text-dim">err</span> {{ s.last_error[:100] }}</span>
+          </div>
+          {% endif %}
+          {% if s.description %}
+          <div class="text-dim text-xs whitespace-pre-wrap mt-1 pl-4 border-l border-divide">{{ s.description }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if not stats %}
+        <div class="text-dim">No mirrors configured.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-outline text-[0.7rem] text-muted">
+      mirrord v0.1.0 &mdash; loaded {{ now|int|datetime }}
+    </div>
+</body>
+</html>

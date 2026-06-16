@@ -1,0 +1,13 @@
+[tools]
+bun = "latest"
+python = "3.14"
+
+[env]
+
+[tasks]
+run = "uv run python -m app.main"
+dev = "uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload"
+build = "docker build -t mirrord ."
+
+"css:build" = "bun tailwindcss -i app/static/tailwind.css -o app/static/output.css --minify"
+"css:watch" = "bun tailwindcss -i app/static/tailwind.css -o app/static/output.css --watch"

@@ -1,0 +1,15 @@
+[project]
+name = "mirrord"
+version = "0.1.0"
+description = "Mirror sync download server with pluggable backends"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "jinja2>=3.1.0",
+    "pyyaml>=6.0",
+    "apscheduler>=3.10.0",
+]
+
+[tool.uv]
+package = false

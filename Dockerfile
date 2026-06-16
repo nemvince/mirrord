@@ -24,7 +24,6 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY app/ app/
-COPY config.yaml config.example.yaml ./
 
 RUN bun tailwindcss -i app/static/tailwind.css -o app/static/output.css --minify \
     && rm -rf node_modules /usr/local/bin/bun

@@ -64,6 +64,11 @@ class SyncEngine:
             plugin = cls(plugin_config)
             self.plugins.append(plugin)
             self._plugin_locks[plugin.stats.slug] = threading.Lock()
+            # Persist stats across restarts
+            plugin.stats._stats_path = os.path.join(
+                self.config.sync.lock_dir, f"{pc.slug}.stats.json"
+            )
+            plugin.stats.load()
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
 
     # ── config hot-reload ──────────────────────────────────────────

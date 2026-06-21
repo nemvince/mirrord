@@ -5,17 +5,22 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 
 from app.sync_engine import SyncEngine
 
 router = APIRouter()
 
-_engine: Optional[SyncEngine] = None
+_engine: SyncEngine | None = None
 
 
 def set_engine(engine: SyncEngine) -> None:
@@ -122,30 +127,40 @@ def _browse_context(slug: str, subpath: str) -> dict:
                 stat = entry.stat()
             except OSError:
                 stat = None
-            entry_path = f"/{entry.name}" if display_path == "/" else f"{display_path}/{entry.name}"
+            entry_path = (
+                f"/{entry.name}"
+                if display_path == "/"
+                else f"{display_path}/{entry.name}"
+            )
             href = f"/{slug}{quote(entry_path, safe='/')}"
-            entries.append({
-                "name": entry.name,
-                "type": "dir" if entry.is_dir() else "file",
-                "size": stat.st_size if stat else 0,
-                "size_fmt": _format_size(stat.st_size) if stat else "—",
-                "mtime": stat.st_mtime if stat else 0,
-                "mtime_fmt": _format_mtime(stat.st_mtime) if stat else "—",
-                "href": href,
-            })
+            entries.append(
+                {
+                    "name": entry.name,
+                    "type": "dir" if entry.is_dir() else "file",
+                    "size": stat.st_size if stat else 0,
+                    "size_fmt": _format_size(stat.st_size) if stat else "—",
+                    "mtime": stat.st_mtime if stat else 0,
+                    "mtime_fmt": _format_mtime(stat.st_mtime) if stat else "—",
+                    "href": href,
+                }
+            )
     ctx["browse_entries"] = entries
 
     bc = [{"name": plugin.stats.plugin_name, "href": f"/{slug}/"}]
     accum = Path(".")
     for part in rel_path.parts:
         accum = accum / part
-        bc.append({
-            "name": part,
-            "href": f"/{slug}/{quote(str(accum), safe='/')}",
-        })
+        bc.append(
+            {
+                "name": part,
+                "href": f"/{slug}/{quote(str(accum), safe='/')}",
+            }
+        )
     ctx["browse_breadcrumbs"] = bc
 
-    ctx["disk_total"], ctx["disk_used"], ctx["disk_free"] = _disk_usage_for_plugin(plugin)
+    ctx["disk_total"], ctx["disk_used"], ctx["disk_free"] = _disk_usage_for_plugin(
+        plugin
+    )
     ctx["next_sync_ts"] = _engine.get_next_sync_time() if _engine else None
 
     return ctx
@@ -198,27 +213,29 @@ async def api_stats():
     plugins = []
     for s in _engine.get_all_stats():
         dl = dl_stats.get(s.slug, {})
-        plugins.append({
-            "name": s.plugin_name,
-            "slug": s.slug,
-            "type": s.plugin_type,
-            "description": s.description,
-            "status": s.status.value,
-            "last_sync": s.last_sync,
-            "last_duration": s.last_duration,
-            "last_size_bytes": s.last_size_bytes,
-            "last_error": s.last_error,
-            "sync_started_at": s.sync_started_at,
-            "progress_pct": s.progress_pct,
-            "dir_size": s.dir_size,
-            "total_syncs": s.total_syncs,
-            "total_failures": s.total_failures,
-            "total_bytes_transferred": s.total_bytes_transferred,
-            "total_downloads": dl.get("total_downloads", 0),
-            "total_bytes_served": dl.get("total_bytes_served", 0),
-            "last_download": dl.get("last_download"),
-            "top_files": dl.get("top_files", []),
-        })
+        plugins.append(
+            {
+                "name": s.plugin_name,
+                "slug": s.slug,
+                "type": s.plugin_type,
+                "description": s.description,
+                "status": s.status.value,
+                "last_sync": s.last_sync,
+                "last_duration": s.last_duration,
+                "last_size_bytes": s.last_size_bytes,
+                "last_error": s.last_error,
+                "sync_started_at": s.sync_started_at,
+                "progress_pct": s.progress_pct,
+                "dir_size": s.dir_size,
+                "total_syncs": s.total_syncs,
+                "total_failures": s.total_failures,
+                "total_bytes_transferred": s.total_bytes_transferred,
+                "total_downloads": dl.get("total_downloads", 0),
+                "total_bytes_served": dl.get("total_bytes_served", 0),
+                "last_download": dl.get("last_download"),
+                "top_files": dl.get("top_files", []),
+            }
+        )
     total_downloads = sum(p["total_downloads"] for p in plugins)
     total_bytes_served = sum(p["total_bytes_served"] for p in plugins)
     return {
@@ -255,8 +272,12 @@ async def api_stream():
                         "sync_started_at": s.sync_started_at,
                         "progress_pct": s.progress_pct,
                         "dir_size": s.dir_size,
-                        "total_downloads": dl_stats.get(s.slug, {}).get("total_downloads", 0),
-                        "total_bytes_served": dl_stats.get(s.slug, {}).get("total_bytes_served", 0),
+                        "total_downloads": dl_stats.get(s.slug, {}).get(
+                            "total_downloads", 0
+                        ),
+                        "total_bytes_served": dl_stats.get(s.slug, {}).get(
+                            "total_bytes_served", 0
+                        ),
                         "last_download": dl_stats.get(s.slug, {}).get("last_download"),
                         "top_files": dl_stats.get(s.slug, {}).get("top_files", []),
                     }
@@ -280,7 +301,12 @@ async def api_browse(plugin_name: str, q: str = Query(default="")):
 
     target = plugin.target_dir.resolve()
     if not target.exists():
-        return {"path": "/", "parent": None, "entries": [], "error": "Directory does not exist"}
+        return {
+            "path": "/",
+            "parent": None,
+            "entries": [],
+            "error": "Directory does not exist",
+        }
 
     rel_path = Path((q or "").lstrip("/"))
     requested = (target / rel_path).resolve()
@@ -303,12 +329,14 @@ async def api_browse(plugin_name: str, q: str = Query(default="")):
                 stat = entry.stat()
             except OSError:
                 stat = None
-            entries.append({
-                "name": entry.name,
-                "type": "dir" if entry.is_dir() else "file",
-                "size": stat.st_size if stat else 0,
-                "mtime": stat.st_mtime if stat else 0,
-            })
+            entries.append(
+                {
+                    "name": entry.name,
+                    "type": "dir" if entry.is_dir() else "file",
+                    "size": stat.st_size if stat else 0,
+                    "mtime": stat.st_mtime if stat else 0,
+                }
+            )
 
     # Compute parent path correctly
     rel_str = str(rel_path)
@@ -343,7 +371,9 @@ async def browse_root(request: Request, slug: str):
         return FileResponse(ctx["file_path"])
     if ctx.get("browse_error"):
         status = 404 if "not found" in ctx["browse_error"].lower() else 500
-        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
+        return Response(
+            ctx["browse_error"], status_code=status, media_type="text/plain"
+        )
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)
 
@@ -359,6 +389,8 @@ async def browse_path(request: Request, slug: str, rest: str):
         return FileResponse(ctx["file_path"])
     if ctx.get("browse_error"):
         status = 404 if "not found" in ctx["browse_error"].lower() else 500
-        return Response(ctx["browse_error"], status_code=status, media_type="text/plain")
+        return Response(
+            ctx["browse_error"], status_code=status, media_type="text/plain"
+        )
     ctx["now"] = time.time()
     return request.app.state.templates.TemplateResponse(request, "browse.html", ctx)

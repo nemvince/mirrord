@@ -1,7 +1,5 @@
 import re
 import threading
-from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -61,7 +59,7 @@ class Config:
         return [p for p in self.plugins if p.enabled]
 
 
-_config: Optional[Config] = None
+_config: Config | None = None
 _config_lock = threading.Lock()
 
 

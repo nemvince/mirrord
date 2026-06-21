@@ -1,8 +1,15 @@
 # mirrord
 
+[![Docker Publish](https://github.com/nemvince/mirrord/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/nemvince/mirrord/actions/workflows/docker-publish.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/nemvince/mirrord)](https://github.com/nemvince/mirrord/commits/main)
+[![GitHub stars](https://img.shields.io/github/stars/nemvince/mirrord)](https://github.com/nemvince/mirrord/stargazers)
+
+
 Mirror sync server with a pluggable backend — schedule and trigger rsync-based
 package/repository mirrors, browse them through a web UI, and control everything
 over a Unix socket.
+
+![UI Screenshot](./assets/mirror.vnce.eu.webp)
 
 ## Quick start
 

@@ -1,6 +1,5 @@
 import fcntl
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -58,13 +57,17 @@ class ArchRsyncPlugin(BaseSyncPlugin):
         try:
             result = subprocess.run(
                 ["du", "-sb", str(self.target)],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if result.returncode == 0:
                 size_str = result.stdout.split()[0]
                 self.stats.dir_size = int(size_str)
         except Exception as e:
-            logger.warning("Failed to compute dir size for %s: %s", self.stats.plugin_name, e)
+            logger.warning(
+                "Failed to compute dir size for %s: %s", self.stats.plugin_name, e
+            )
 
     def _ensure_target(self) -> None:
         self.target.mkdir(parents=True, exist_ok=True)
@@ -118,7 +121,9 @@ class ArchRsyncPlugin(BaseSyncPlugin):
                     self.stats.skipped()
                     return
             except Exception as e:
-                logger.warning("Lastupdate check failed for %s: %s", self.stats.plugin_name, e)
+                logger.warning(
+                    "Lastupdate check failed for %s: %s", self.stats.plugin_name, e
+                )
 
         args = self._build_rsync_args()
         args.extend([self.source_url, str(self.target)])
@@ -192,7 +197,9 @@ class ArchRsyncPlugin(BaseSyncPlugin):
                 pct = self.stats.progress_pct
                 logger.info(
                     "Sync %s: %d%% complete, elapsed %.0fs",
-                    self.stats.plugin_name, pct, elapsed,
+                    self.stats.plugin_name,
+                    pct,
+                    elapsed,
                 )
 
         progress_thread = threading.Thread(target=_log_periodic, daemon=True)

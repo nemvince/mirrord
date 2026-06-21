@@ -3,11 +3,10 @@ import os
 import threading
 import time
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 
-class SyncStatus(str, Enum):
+class SyncStatus(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
     SUCCESS = "success"
@@ -22,11 +21,11 @@ class SyncJobStats:
     slug: str = ""
     description: str = ""
     status: SyncStatus = SyncStatus.IDLE
-    last_sync: Optional[float] = None
-    last_duration: Optional[float] = None
+    last_sync: float | None = None
+    last_duration: float | None = None
     last_size_bytes: int = 0
-    last_error: Optional[str] = None
-    sync_started_at: Optional[float] = None
+    last_error: str | None = None
+    sync_started_at: float | None = None
     progress_pct: int = 0
     dir_size: int = 0
     total_syncs: int = 0

@@ -3,7 +3,6 @@ import logging
 import os
 import socket
 import threading
-import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -47,7 +46,11 @@ class SyncEngine:
         self.scheduler.start()
         self._start_control_socket()
         self._start_config_watcher()
-        logger.info("Sync engine started (interval=%ds, plugins=%d)", interval, len(self.plugins))
+        logger.info(
+            "Sync engine started (interval=%ds, plugins=%d)",
+            interval,
+            len(self.plugins),
+        )
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -61,7 +64,12 @@ class SyncEngine:
             if cls is None:
                 logger.warning("Unknown plugin type: %s", pc.type)
                 continue
-            plugin_config = {**pc.config, "name": pc.name, "slug": pc.slug, "description": pc.description}
+            plugin_config = {
+                **pc.config,
+                "name": pc.name,
+                "slug": pc.slug,
+                "description": pc.description,
+            }
             plugin_config.setdefault("lock_dir", self.config.sync.lock_dir)
             plugin = cls(plugin_config)
             self.plugins.append(plugin)
@@ -90,6 +98,7 @@ class SyncEngine:
 
     def _start_config_watcher(self) -> None:
         """Poll config.yaml every 10s; hot-reload when mtime changes."""
+
         def _watch() -> None:
             while not self._stop_event.wait(10):
                 try:
@@ -99,6 +108,7 @@ class SyncEngine:
                 if mtime != self._config_mtime:
                     logger.info("Config file changed, reloading...")
                     self._reload_engine()
+
         thread = threading.Thread(target=_watch, daemon=True, name="config-watcher")
         thread.start()
 
@@ -263,7 +273,7 @@ class SyncEngine:
             while not self._stop_event.is_set():
                 try:
                     conn, _ = sock.accept()
-                except socket.timeout:
+                except TimeoutError:
                     continue
                 try:
                     data = b""
@@ -279,7 +289,9 @@ class SyncEngine:
                         conn.sendall((json.dumps(response) + "\n").encode())
                 except Exception as e:
                     try:
-                        conn.sendall((json.dumps({"ok": False, "error": str(e)}) + "\n").encode())
+                        conn.sendall(
+                            (json.dumps({"ok": False, "error": str(e)}) + "\n").encode()
+                        )
                     except Exception:
                         pass
                 finally:

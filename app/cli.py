@@ -35,7 +35,7 @@ def _send(action: str, plugin: str = "", socket_path: str | None = None) -> dict
     except BrokenPipeError:
         print(f"Error: server closed connection at {path}", file=sys.stderr)
         sys.exit(1)
-    except socket.timeout:
+    except TimeoutError:
         print("Error: connection timed out", file=sys.stderr)
         sys.exit(1)
     except (json.JSONDecodeError, UnicodeDecodeError):

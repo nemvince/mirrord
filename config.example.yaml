@@ -71,9 +71,22 @@ plugins:
         - "/tools"
         - "/ls-lR.gz"
 
+  # ── Local directory (no sync) ────────────────────────────────
+  - type: local_dir
+    enabled: true
+    name: "Static Assets"
+    slug: "static-assets"
+    description: |
+      Serves an existing local directory as-is — no remote sync.
+      Useful for NFS mounts, externally managed data, or manually
+      populated trees.
+    config:
+      target: "/data/static-assets"
+
   # Add more mirrors below by copying a block above and adjusting
   # type, name, slug, and config.
   #
   # Supported plugin types:
   #   arch_rsync  — rsync-based mirror (Arch, Debian, Ubuntu, …)
   #   debmirror   — HTTP-based Debian mirror (uses debmirror tool)
+  #   local_dir   — serves an existing local directory (no sync)

@@ -11,5 +11,24 @@ dependencies = [
     "apscheduler>=3.10.0",
 ]
 
+[dependency-groups]
+dev = ["ruff>=0.11"]
+
 [tool.uv]
 package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

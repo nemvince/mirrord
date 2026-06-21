@@ -3,8 +3,6 @@ import os
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
-
 
 MAX_TOP_FILES = 10  # keep only the top N most-downloaded files in memory
 
@@ -15,8 +13,10 @@ class DownloadStats:
 
     total_downloads: int = 0
     total_bytes_served: int = 0
-    last_download: Optional[float] = None
-    top_files: dict[str, int] = field(default_factory=dict)  # path → count (in-memory only)
+    last_download: float | None = None
+    top_files: dict[str, int] = field(
+        default_factory=dict
+    )  # path → count (in-memory only)
     _stats_path: str = ""
 
     def __post_init__(self):
@@ -32,9 +32,9 @@ class DownloadStats:
     def top_files_list(self) -> list[tuple[str, int]]:
         """Return top files sorted by download count, limited to MAX_TOP_FILES."""
         with self._lock:
-            return sorted(
-                self.top_files.items(), key=lambda x: x[1], reverse=True
-            )[:MAX_TOP_FILES]
+            return sorted(self.top_files.items(), key=lambda x: x[1], reverse=True)[
+                :MAX_TOP_FILES
+            ]
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -99,7 +99,7 @@ class DownloadTracker:
         ds.record(path, size)
         ds.save()
 
-    def get_snapshot(self, slug: str) -> Optional[dict]:
+    def get_snapshot(self, slug: str) -> dict | None:
         with self._lock:
             ds = self._stats.get(slug)
             if ds is None:

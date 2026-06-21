@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 import subprocess
 import threading
@@ -31,7 +30,9 @@ class DebMirrorPlugin(BaseSyncPlugin):
         self.root = self.config.get("root", "/debian")
         self.method = self.config.get("method", "http")
         self.dists = self.config.get("dists", "bookworm,bookworm-updates")
-        self.sections = self.config.get("sections", "main,contrib,non-free,non-free-firmware")
+        self.sections = self.config.get(
+            "sections", "main,contrib,non-free,non-free-firmware"
+        )
         self.archs = self.config.get("archs", "amd64")
         self.source = self.config.get("source", False)
         self.ignore_release_gpg = self.config.get("ignore_release_gpg", True)
@@ -64,12 +65,18 @@ class DebMirrorPlugin(BaseSyncPlugin):
             "debmirror",
             "--progress",
             "--verbose",
-            "--host", self.host,
-            "--root", self.root,
-            "--method", self.method,
-            "--dist", self.dists,
-            "--section", self.sections,
-            "--arch", self.archs,
+            "--host",
+            self.host,
+            "--root",
+            self.root,
+            "--method",
+            self.method,
+            "--dist",
+            self.dists,
+            "--section",
+            self.sections,
+            "--arch",
+            self.archs,
             str(self.target),
         ]
         if not self.source:
@@ -97,7 +104,9 @@ class DebMirrorPlugin(BaseSyncPlugin):
                 pct = self.stats.progress_pct
                 logger.info(
                     "Sync %s: %d%% complete, elapsed %.0fs",
-                    self.stats.plugin_name, pct, elapsed,
+                    self.stats.plugin_name,
+                    pct,
+                    elapsed,
                 )
 
         progress_thread = threading.Thread(target=_log_periodic, daemon=True)
@@ -137,10 +146,14 @@ class DebMirrorPlugin(BaseSyncPlugin):
         try:
             result = subprocess.run(
                 ["du", "-sb", str(self.target)],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if result.returncode == 0:
                 size_str = result.stdout.split()[0]
                 self.stats.dir_size = int(size_str)
         except Exception as e:
-            logger.warning("Failed to compute dir size for %s: %s", self.stats.plugin_name, e)
+            logger.warning(
+                "Failed to compute dir size for %s: %s", self.stats.plugin_name, e
+            )

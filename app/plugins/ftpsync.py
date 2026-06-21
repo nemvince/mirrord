@@ -90,6 +90,7 @@ class FtpSyncPlugin(BaseSyncPlugin):
 
         # ── lock / logging ───────────────────────────────────────
         self.slug = self.config.get("slug", "ftpsync")
+        self.conf_dir = Path(self.config.get("conf_dir", "/etc/ftpsync"))
         self.lock_path = (
             Path(self.config.get("lock_dir", "/tmp/mirrord")) / f"{self.slug}.lck"
         )
@@ -139,7 +140,7 @@ class FtpSyncPlugin(BaseSyncPlugin):
 
     def _config_path(self) -> Path:
         """Return the path to the ftpsync.conf we generate."""
-        return Path("/etc/ftpsync") / f"ftpsync-{self.slug}.conf"
+        return self.conf_dir / f"ftpsync-{self.slug}.conf"
 
     def _write_config(self) -> None:
         """Render a ``ftpsync.conf`` from the current plugin config.

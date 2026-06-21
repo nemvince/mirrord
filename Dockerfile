@@ -1,34 +1,45 @@
+FROM oven/bun:alpine AS css-builder
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY app/static/tailwind.css input.css
+
+RUN bun tailwindcss -i input.css -o output.css --minify
+
 FROM python:3.14-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     rsync \
     curl \
     openssl \
-    debmirror \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY --from=oven/bun:latest /usr/local/bin/bun /usr/local/bin/bun
+    debmirror
 
 WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+ENV PYTHONUNBUFFERED=1
 
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
-
 COPY app/ app/
 
-RUN bun tailwindcss -i app/static/tailwind.css -o app/static/output.css --minify \
-    && rm -rf node_modules /usr/local/bin/bun
+RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen
 
-RUN mkdir -p /data /var/lock/mirrord
+COPY --from=css-builder /app/output.css app/static/output.css
+
+RUN mkdir -p /var/lock/mirrord
 
 EXPOSE 8080
 
@@ -39,4 +50,5 @@ ARG APP_VERSION=dev
 ENV MIRRORD_GIT_COMMIT=${GIT_COMMIT}
 ENV MIRRORD_VERSION=${APP_VERSION}
 
-CMD ["uv", "run", "python", "-m", "app.main"]
+ENV PATH="/app/.venv/bin:$PATH"
+CMD ["python", "-m", "app.main"]

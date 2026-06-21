@@ -1,12 +1,10 @@
 services:
   mirrord:
     build: .
+    image: mirrord
     container_name: mirrord
     ports:
       - "8080:8080"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./mirrors:/data
-    restart: unless-stopped
-    environment:
-      - MIRRORD_CONFIG=config.yaml

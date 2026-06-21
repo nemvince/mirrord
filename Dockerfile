@@ -34,4 +34,9 @@ EXPOSE 8080
 
 ENV MIRRORD_CONFIG=config.yaml
 
+ARG GIT_COMMIT=unknown
+ARG APP_VERSION=dev
+ENV MIRRORD_GIT_COMMIT=${GIT_COMMIT}
+ENV MIRRORD_VERSION=${APP_VERSION}
+
 CMD ["uv", "run", "python", "-m", "app.main"]

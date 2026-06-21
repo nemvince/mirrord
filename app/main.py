@@ -40,7 +40,17 @@ def create_app() -> FastAPI:
         yield
         engine.stop()
 
-    app = FastAPI(title="mirrord", version="0.1.0", lifespan=lifespan)
+    # Resolve display version: release tag > git commit > fallback
+    app_version = os.environ.get("MIRRORD_VERSION", "dev")
+    git_commit = os.environ.get("MIRRORD_GIT_COMMIT", "")
+    if app_version and app_version != "dev":
+        display_version = app_version
+    elif git_commit:
+        display_version = git_commit[:7]
+    else:
+        display_version = "dev"
+
+    app = FastAPI(title="mirrord", version=display_version, lifespan=lifespan)
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -48,6 +58,7 @@ def create_app() -> FastAPI:
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     templates = Jinja2Templates(directory=templates_dir)
     templates.env.filters["datetime"] = datetime_filter
+    templates.env.globals["version"] = display_version
     app.state.templates = templates
 
     app.include_router(router)

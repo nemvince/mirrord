@@ -91,7 +91,9 @@ class FtpSyncPlugin(BaseSyncPlugin):
         # ── lock / logging ───────────────────────────────────────
         self.slug = self.config.get("slug", "ftpsync")
         self.conf_dir = Path(
-            self.config.get("conf_dir", str(Path.home() / "etc"))
+            self.config.get(
+                "conf_dir", str(Path.home() / ".config" / "ftpsync")
+            )
         )
         self.lock_path = (
             Path(self.config.get("lock_dir", "/tmp/mirrord")) / f"{self.slug}.lck"

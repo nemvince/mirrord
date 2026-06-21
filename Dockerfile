@@ -5,9 +5,9 @@ WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-COPY app/static/tailwind.css input.css
+COPY app/ app/
 
-RUN bun tailwindcss -i input.css -o output.css --minify
+RUN bun tailwindcss -i app/static/tailwind.css -o output.css --minify
 
 FROM python:3.14-slim
 

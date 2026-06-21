@@ -90,7 +90,9 @@ class FtpSyncPlugin(BaseSyncPlugin):
 
         # ── lock / logging ───────────────────────────────────────
         self.slug = self.config.get("slug", "ftpsync")
-        self.conf_dir = Path(self.config.get("conf_dir", "/etc/ftpsync"))
+        self.conf_dir = Path(
+            self.config.get("conf_dir", str(Path.home() / "etc"))
+        )
         self.lock_path = (
             Path(self.config.get("lock_dir", "/tmp/mirrord")) / f"{self.slug}.lck"
         )
@@ -157,7 +159,7 @@ class FtpSyncPlugin(BaseSyncPlugin):
             f'RSYNC_PATH="{esc(self.rsync_path)}"',
             "",
             "# ── mail (ftpsync requires MAILTO or LOGNAME) ──",
-            'MAILTO=""',
+            'MAILTO="root"',
         ]
 
         if self.rsync_transport:

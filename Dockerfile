@@ -44,7 +44,7 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 COPY --from=css-builder /app/output.css app/static/output.css
 
 # Ensure directories exist and are writable by appuser
-RUN mkdir -p /var/lock/mirrord /etc/ftpsync /tmp/mirrord && chmod 777 /etc/ftpsync /tmp/mirrord \
+RUN mkdir -p /var/lock/mirrord /tmp/mirrord /app/etc && chmod 777 /tmp/mirrord \
     && chown -R appuser:appuser /app /var/lock/mirrord /tmp/mirrord
 
 EXPOSE 8080

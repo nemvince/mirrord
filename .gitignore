@@ -8,3 +8,4 @@ node_modules
 .reasonix
 reasonix.toml
 .codegraph
+.ruff_cache/

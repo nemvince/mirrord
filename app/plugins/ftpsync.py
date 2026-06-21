@@ -155,6 +155,9 @@ class FtpSyncPlugin(BaseSyncPlugin):
             "# ── connection ──",
             f'RSYNC_HOST="{esc(self.host)}"',
             f'RSYNC_PATH="{esc(self.rsync_path)}"',
+            "",
+            "# ── mail (ftpsync requires MAILTO or LOGNAME) ──",
+            'MAILTO=""',
         ]
 
         if self.rsync_transport:

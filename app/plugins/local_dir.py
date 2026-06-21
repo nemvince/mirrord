@@ -10,7 +10,7 @@ logger = logging.getLogger("mirrord.plugin.local_dir")
 class LocalDirPlugin(BaseSyncPlugin):
     """Mirror plugin that serves an existing local directory as-is.
 
-    Unlike sync-based plugins (rsync, debmirror), this does not fetch data
+    Unlike sync-based plugins (rsync, ftpsync), this does not fetch data
     from a remote source — it simply exposes a pre-existing directory on
     disk and reports its size/stats.  Useful for NFS mounts, manually
     maintained trees, or data populated by an external process.

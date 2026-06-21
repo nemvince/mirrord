@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rsync \
     curl \
     openssl \
-    debmirror
+    ftpsync
 
 WORKDIR /app
 

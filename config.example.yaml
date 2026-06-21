@@ -34,34 +34,36 @@ plugins:
         - "/other"
         - "/sources"
 
-  # ── Debian (HTTP via debmirror) ─────────────────────────────────
-  - type: debmirror
-    enabled: true
-    name: "Debian (HTTP)"
-    slug: "debian-http"
-    description: |
-      Debian package mirror over HTTP — no rsync needed.
-      Downloads bookworm (stable), amd64 only, no sources.
-      Requires `debmirror` on the host (apt install debmirror).
-    config:
-      target: "/data/debian-http"
-      host: "ftp.debian.org"
-      root: "/debian"
-      dists: "bookworm,bookworm-updates"
-      sections: "main,contrib,non-free,non-free-firmware"
-      archs: "amd64"
-      ignore_release_gpg: true
-
-  # ── Debian (rsync) ──────────────────────────────────────────────
-  - type: arch_rsync
+  # ── Debian (ftpsync — public‑mirror grade) ───────────────────
+  - type: ftpsync
     enabled: true
     name: "Debian"
     slug: "debian"
     description: |
-      Debian package repository (stable).
-      Public rsync mirror — no registration needed.
+      Debian archive mirror via ftpsync (two‑stage rsync).
+      Suitable for use as a public mirror — see
+      https://www.debian.org/mirror/ftpmirror.
+      Requires `ftpsync` on the host (apt install ftpsync).
     config:
       target: "/data/debian"
+      host: "ftp.debian.org"
+      rsync_path: "debian"
+      archs: "amd64"
+      include_source: false
+      bwlimit: 4096
+
+  # ── Debian (rsync — lightweight subset) ─────────────────────────
+  - type: arch_rsync
+    enabled: false
+    name: "Debian (subset)"
+    slug: "debian-subset"
+    description: |
+      Lightweight Debian mirror via plain rsync — useful when you only
+      need a subset (e.g. specific architectures or excludes) and don't
+      need public-mirror grade.  Prefer the ftpsync entry above for
+      anything that will be served publicly.
+    config:
+      target: "/data/debian-subset"
       source_url: "rsync://ftp.debian.org/debian"
       tls: false
       bwlimit: 4096
@@ -88,5 +90,5 @@ plugins:
   #
   # Supported plugin types:
   #   arch_rsync  — rsync-based mirror (Arch, Debian, Ubuntu, …)
-  #   debmirror   — HTTP-based Debian mirror (uses debmirror tool)
+  #   ftpsync     — public-mirror-grade Debian sync (two-stage rsync)
   #   local_dir   — serves an existing local directory (no sync)

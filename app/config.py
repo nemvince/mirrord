@@ -74,7 +74,7 @@ def get_config() -> Config:
     global _config
     with _config_lock:
         if _config is None:
-            _config = load_config()
+            _config = Config("config.yaml")
         return _config
 
 

@@ -15,7 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rsync \
     curl \
     openssl \
-    ftpsync
+    ftpsync \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for the application
+RUN useradd -r -s /usr/sbin/nologin -d /app appuser
 
 WORKDIR /app
 
@@ -39,7 +43,9 @@ RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
 
 COPY --from=css-builder /app/output.css app/static/output.css
 
-RUN mkdir -p /var/lock/mirrord
+# Ensure directories exist and are writable by appuser
+RUN mkdir -p /var/lock/mirrord /tmp/mirrord \
+    && chown -R appuser:appuser /app /var/lock/mirrord /tmp/mirrord
 
 EXPOSE 8080
 
@@ -51,4 +57,10 @@ ENV MIRRORD_GIT_COMMIT=${GIT_COMMIT}
 ENV MIRRORD_VERSION=${APP_VERSION}
 
 ENV PATH="/app/.venv/bin:$PATH"
+
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+
 CMD ["python", "-m", "app.main"]

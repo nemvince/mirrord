@@ -19,20 +19,31 @@ class SyncEngine:
     def __init__(self):
         self.config = get_config()
         self.scheduler = BackgroundScheduler()
-        self.plugins: list = []
+        self._plugins: list = []
+        self._plugins_lock = threading.Lock()
         self._plugin_locks: dict[str, threading.Lock] = {}
         self._stop_event = threading.Event()
+        self._started_event = threading.Event()
         self._socket_thread = None
-        self._started = False
         self._config_mtime: float = 0
         self._reload_lock = threading.Lock()
         self.download_tracker = DownloadTracker()
 
+    def _get_plugins_snapshot(self) -> list:
+        """Return a snapshot of the current plugin list (thread-safe)."""
+        with self._plugins_lock:
+            return list(self._plugins)
+
+    @property
+    def plugins(self) -> list:
+        """Thread-safe access to the current plugin list."""
+        return self._get_plugins_snapshot()
+
     def start(self) -> None:
-        if self._started:
+        if self._started_event.is_set():
             logger.warning("Sync engine already started, ignoring duplicate start()")
             return
-        self._started = True
+        self._started_event.set()
         self._record_config_mtime()
         self._init_plugins()
         interval = self.config.sync.interval
@@ -46,10 +57,12 @@ class SyncEngine:
         self.scheduler.start()
         self._start_control_socket()
         self._start_config_watcher()
+        with self._plugins_lock:
+            count = len(self._plugins)
         logger.info(
             "Sync engine started (interval=%ds, plugins=%d)",
             interval,
-            len(self.plugins),
+            count,
         )
 
     def stop(self) -> None:
@@ -59,6 +72,7 @@ class SyncEngine:
             self._socket_thread.join(timeout=2.0)
 
     def _init_plugins(self) -> None:
+        new_plugins = []
         for pc in self.config.enabled_plugins:
             cls = get_plugin(pc.type)
             if cls is None:
@@ -72,8 +86,10 @@ class SyncEngine:
             }
             plugin_config.setdefault("lock_dir", self.config.sync.lock_dir)
             plugin = cls(plugin_config)
-            self.plugins.append(plugin)
-            self._plugin_locks[plugin.stats.slug] = threading.Lock()
+            new_plugins.append(plugin)
+            # Reuse existing lock if slug survived the reload, else create new
+            if plugin.stats.slug not in self._plugin_locks:
+                self._plugin_locks[plugin.stats.slug] = threading.Lock()
             # Persist stats across restarts
             plugin.stats._stats_path = os.path.join(
                 self.config.sync.lock_dir, f"{pc.slug}.stats.json"
@@ -87,6 +103,8 @@ class SyncEngine:
                 ),
             )
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
+        with self._plugins_lock:
+            self._plugins = new_plugins
 
     # ── config hot-reload ──────────────────────────────────────────
 
@@ -121,22 +139,31 @@ class SyncEngine:
                 logger.error("Failed to reload config: %s", e)
                 return
 
-            logger.info("Stopping %d plugins for reload...", len(self.plugins))
-            for plugin in self.plugins:
+            # Snapshot the current plugins under the lock
+            with self._plugins_lock:
+                old_plugins = list(self._plugins)
+
+            logger.info("Stopping %d plugins for reload...", len(old_plugins))
+            for plugin in old_plugins:
                 plugin.stop()
-            self.plugins.clear()
-            self._plugin_locks.clear()
+
+            # Note: we intentionally do NOT clear _plugin_locks here.
+            # Locks are reused when a slug survives the reload.
+            # This prevents orphaned sync threads from losing mutual exclusion.
 
             self.config = new_config
             self._record_config_mtime()
-            self._init_plugins()
+            self._init_plugins()  # atomically swaps self._plugins
 
             # Prune download stats for removed plugins
-            active_slugs = {p.stats.slug for p in self.plugins}
+            active_slugs = {p.stats.slug for p in self._get_plugins_snapshot()}
             self.download_tracker.prune_stale(active_slugs)
 
             # Reschedule with potentially new interval
-            self.scheduler.remove_job("sync_all")
+            try:
+                self.scheduler.remove_job("sync_all")
+            except Exception:
+                pass  # job may not exist yet
             self.scheduler.add_job(
                 self._run_all,
                 "interval",
@@ -147,11 +174,11 @@ class SyncEngine:
             logger.info(
                 "Config reloaded (interval=%ds, plugins=%d)",
                 self.config.sync.interval,
-                len(self.plugins),
+                len(active_slugs),
             )
 
     def _run_all(self) -> None:
-        for plugin in self.plugins:
+        for plugin in self._get_plugins_snapshot():
             thread = threading.Thread(
                 target=self._run_plugin, args=(plugin,), daemon=True
             )
@@ -184,7 +211,7 @@ class SyncEngine:
                 logger.error("Sync %s failed: %s", plugin.stats.plugin_name, e)
 
     def get_all_stats(self) -> list:
-        return [p.stats.snapshot() for p in self.plugins]
+        return [p.stats.snapshot() for p in self._get_plugins_snapshot()]
 
     def record_download(self, slug: str, path: str, size: int) -> None:
         self.download_tracker.record_download(slug, path, size)
@@ -200,20 +227,20 @@ class SyncEngine:
         return None
 
     def get_plugin_by_name(self, name: str):
-        for p in self.plugins:
+        for p in self._get_plugins_snapshot():
             if p.stats.plugin_name == name:
                 return p
         return None
 
     def get_plugin_by_slug(self, slug: str):
-        for p in self.plugins:
+        for p in self._get_plugins_snapshot():
             if p.stats.slug == slug:
                 return p
         return None
 
     @property
     def plugin_names(self) -> list[str]:
-        return [p.stats.plugin_name for p in self.plugins]
+        return [p.stats.plugin_name for p in self._get_plugins_snapshot()]
 
     def _find_plugin(self, key: str):
         return self.get_plugin_by_name(key) or self.get_plugin_by_slug(key)
@@ -227,7 +254,7 @@ class SyncEngine:
         return True
 
     def trigger_all(self) -> None:
-        for plugin in self.plugins:
+        for plugin in self._get_plugins_snapshot():
             self.trigger_sync(plugin.stats.slug)
 
     def stop_sync(self, key: str) -> bool:
@@ -238,7 +265,7 @@ class SyncEngine:
         return True
 
     def stop_all(self) -> None:
-        for plugin in self.plugins:
+        for plugin in self._get_plugins_snapshot():
             plugin.stop()
 
     def _start_control_socket(self) -> None:
@@ -284,6 +311,15 @@ class SyncEngine:
                         data += chunk
                         if b"\n" in data:
                             break
+                        # Cap at 64 KB to prevent OOM from malicious clients
+                        if len(data) > 65536:
+                            err = json.dumps(
+                                {"ok": False, "error": "payload too large"}
+                            )
+                            conn.sendall((err + "\n").encode())
+                            break
+                    else:
+                        data = b""
                     if data:
                         response = self._handle_control(data.decode().strip())
                         conn.sendall((json.dumps(response) + "\n").encode())

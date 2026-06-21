@@ -18,6 +18,9 @@ logger = logging.getLogger("mirrord.plugin.arch_rsync")
 # Progress = (total - remaining) / total * 100
 _PROGRESS_RE = re.compile(r"(?:to|ir)-chk=(\d+)/(\d+)")
 
+# Allowed URL schemes for rsync sources.
+_VALID_SOURCE_SCHEMES = ("rsync://", "https://", "http://")
+
 
 class ArchRsyncPlugin(BaseSyncPlugin):
     plugin_type = "arch_rsync"
@@ -35,6 +38,41 @@ class ArchRsyncPlugin(BaseSyncPlugin):
             / f"{self.config.get('slug', 'arch_rsync')}.lck"
         )
         self._proc_lock = threading.Lock()
+        self._validate_config()
+
+    def _validate_config(self) -> None:
+        """Validate config values to prevent injection and misconfiguration."""
+        name = self.config.get("name", self.plugin_type)
+
+        # Validate source_url scheme
+        if self.source_url and not self.source_url.startswith(_VALID_SOURCE_SCHEMES):
+            raise ValueError(
+                f"Plugin '{name}': source_url must start with one of "
+                f"{_VALID_SOURCE_SCHEMES}, got: {self.source_url!r}"
+            )
+
+        # Validate lastupdate_url scheme (if provided)
+        if self.lastupdate_url and not self.lastupdate_url.startswith(
+            ("https://", "http://")
+        ):
+            raise ValueError(
+                f"Plugin '{name}': lastupdate_url must be http(s), "
+                f"got: {self.lastupdate_url!r}"
+            )
+
+        # Validate bwlimit is a non-negative integer
+        if not isinstance(self.bwlimit, int) or self.bwlimit < 0:
+            raise ValueError(
+                f"Plugin '{name}': bwlimit must be a non-negative integer, "
+                f"got: {self.bwlimit!r}"
+            )
+
+        # Validate excludes are non-empty strings without shell metacharacters
+        for exc in self.excludes:
+            if not isinstance(exc, str) or not exc.strip():
+                raise ValueError(
+                    f"Plugin '{name}': exclude entries must be non-empty strings"
+                )
 
     def sync(self) -> None:
         self.stats.start()

@@ -246,6 +246,7 @@ class FtpSyncPlugin(BaseSyncPlugin):
         progress_thread.start()
 
         try:
+            lines: list[str] = []
             buf = ""
             while True:
                 ch = proc.stdout.read(1)
@@ -253,13 +254,15 @@ class FtpSyncPlugin(BaseSyncPlugin):
                     break
                 if ch in ("\r", "\n"):
                     self._parse_stage(buf)
-                    if buf.strip():
-                        logger.debug("ftpsync: %s", buf.rstrip())
+                    stripped = buf.strip()
+                    if stripped:
+                        lines.append(stripped)
                     buf = ""
                 else:
                     buf += ch
             if buf:
                 self._parse_stage(buf)
+                lines.append(buf.strip())
         finally:
             progress_stop.set()
             proc.wait()
@@ -269,6 +272,8 @@ class FtpSyncPlugin(BaseSyncPlugin):
 
         elapsed = time.time() - start
         if proc.returncode != 0:
+            for line in lines:
+                logger.error("ftpsync: %s", line)
             raise RuntimeError(f"ftpsync failed with exit code {proc.returncode}")
 
         self.stats.set_progress(self._STAGE_PROGRESS["done"])

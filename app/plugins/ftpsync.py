@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import subprocess
 import threading
@@ -90,14 +91,13 @@ class FtpSyncPlugin(BaseSyncPlugin):
 
         # ── lock / logging ───────────────────────────────────────
         self.slug = self.config.get("slug", "ftpsync")
+        self._lock_dir = Path(self.config.get("lock_dir", "/tmp/mirrord"))
         self.conf_dir = Path(
             self.config.get(
-                "conf_dir", str(Path.home() / ".config" / "ftpsync")
+                "conf_dir", str(self._lock_dir / "ftpsync-home" / ".config" / "ftpsync")
             )
         )
-        self.lock_path = (
-            Path(self.config.get("lock_dir", "/tmp/mirrord")) / f"{self.slug}.lck"
-        )
+        self.lock_path = self._lock_dir / f"{self.slug}.lck"
         self._proc_lock = threading.Lock()
         self._validate_config()
 
@@ -216,9 +216,16 @@ class FtpSyncPlugin(BaseSyncPlugin):
         """Build the ftpsync command line.
 
         Uses ``sync:archive:<slug>`` so ftpsync reads
-        ``/etc/ftpsync/ftpsync-<slug>.conf``.
+        ``ftpsync-<slug>.conf`` from CONFDIRS.
         """
         return ["ftpsync", f"sync:archive:{self.slug}"]
+
+    def _ftpsync_env(self) -> dict[str, str]:
+        """Environment for ftpsync — set HOME so ``~/.config/ftpsync`` resolves
+        to the directory containing our generated config."""
+        env = dict(os.environ)
+        env["HOME"] = str(self._lock_dir / "ftpsync-home")
+        return env
 
     def _run_ftpsync(self) -> None:
         args = self._ftpsync_args()
@@ -232,6 +239,7 @@ class FtpSyncPlugin(BaseSyncPlugin):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                env=self._ftpsync_env(),
             )
             self._process = proc
 

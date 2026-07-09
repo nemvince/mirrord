@@ -231,10 +231,4 @@ class DownloadDB:
                         "VALUES (?, ?, ?, ?, ?, ?)",
                         (slug, "__legacy__", bytes_served, last_ts, None, None),
                     )
-                    date = datetime.fromtimestamp(last_ts).strftime("%Y-%m-%d")
-                    self._conn.execute(
-                        "INSERT OR IGNORE INTO daily_dl (date, slug, count, bytes) "
-                        "VALUES (?, ?, ?, ?)",
-                        (date, slug, total, bytes_served),
-                    )
                 self._conn.commit()

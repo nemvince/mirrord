@@ -266,8 +266,8 @@ async def download_stats_page(request: Request):
 
     overview = db.get_overview()
     daily = db.get_daily_totals(days=30)
-    top_files = db.get_top_files(limit=15)
-    recent = db.get_recent(limit=50)
+    top_files = [f for f in db.get_top_files(limit=15) if f["path"] != "__legacy__"]
+    recent = [r for r in db.get_recent(limit=50) if r["path"] != "__legacy__"]
     geo_data = overview["by_geocode"]
     by_slug = overview["by_slug"]
 

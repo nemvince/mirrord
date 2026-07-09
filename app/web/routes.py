@@ -302,7 +302,6 @@ async def download_stats_page(request: Request):
             label_key="slug",
             value_key="count",
             title="Downloads per Mirror",
-            max_label_w=160,
         )
         # fall back to simple hbar if multi doesn't work well
         if not by_slug_svg:

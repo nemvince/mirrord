@@ -6,4 +6,8 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - /mirrors:/data
+      - mirrord_db:/tmp/mirrord
+
+volumes:
+  mirrord_db:
     restart: unless-stopped

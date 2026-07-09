@@ -47,8 +47,12 @@ class DownloadDB:
             self._conn.commit()
 
     def record(
-        self, slug: str, path: str, size: int,
-        ua: str | None = None, geocode: str | None = None,
+        self,
+        slug: str,
+        path: str,
+        size: int,
+        ua: str | None = None,
+        geocode: str | None = None,
     ) -> None:
         with self._lock:
             ts = time.time()
@@ -84,15 +88,19 @@ class DownloadDB:
             return [dict(r) for r in rows]
 
     def get_top_files(
-        self, slug: str | None = None,
-        limit: int = 25, since_days: int | None = None,
+        self,
+        slug: str | None = None,
+        limit: int = 25,
+        since_days: int | None = None,
     ) -> list[dict]:
         with self._lock:
             cutoff = time.time() - since_days * 86400 if since_days else 0
             if slug:
                 if since_days:
-                    col = ("path, COUNT(*) AS count, SUM(size) AS bytes, "
-                           "MAX(ts) AS last_dl")
+                    col = (
+                        "path, COUNT(*) AS count, SUM(size) AS bytes, "
+                        "MAX(ts) AS last_dl"
+                    )
                     rows = self._conn.execute(
                         f"SELECT {col} "
                         "FROM downloads WHERE slug = ? AND ts > ? "
@@ -100,8 +108,10 @@ class DownloadDB:
                         (slug, cutoff, limit),
                     ).fetchall()
                 else:
-                    col = ("path, COUNT(*) AS count, SUM(size) AS bytes, "
-                           "MAX(ts) AS last_dl")
+                    col = (
+                        "path, COUNT(*) AS count, SUM(size) AS bytes, "
+                        "MAX(ts) AS last_dl"
+                    )
                     rows = self._conn.execute(
                         f"SELECT {col} "
                         "FROM downloads WHERE slug = ? "
@@ -110,8 +120,10 @@ class DownloadDB:
                     ).fetchall()
             else:
                 if since_days:
-                    col = ("slug, path, COUNT(*) AS count, SUM(size) AS bytes, "
-                           "MAX(ts) AS last_dl")
+                    col = (
+                        "slug, path, COUNT(*) AS count, SUM(size) AS bytes, "
+                        "MAX(ts) AS last_dl"
+                    )
                     rows = self._conn.execute(
                         f"SELECT {col} "
                         "FROM downloads WHERE ts > ? "
@@ -119,8 +131,10 @@ class DownloadDB:
                         (cutoff, limit),
                     ).fetchall()
                 else:
-                    col = ("slug, path, COUNT(*) AS count, SUM(size) AS bytes, "
-                           "MAX(ts) AS last_dl")
+                    col = (
+                        "slug, path, COUNT(*) AS count, SUM(size) AS bytes, "
+                        "MAX(ts) AS last_dl"
+                    )
                     rows = self._conn.execute(
                         f"SELECT {col} "
                         "FROM downloads "
@@ -186,16 +200,16 @@ class DownloadDB:
             }
 
     def get_top_files_for_slug(
-        self, slug: str, limit: int = 10,
+        self,
+        slug: str,
+        limit: int = 10,
     ) -> list[tuple[str, int]]:
         rows = self.get_top_files(slug=slug, limit=limit)
         return [(r["path"], r["count"]) for r in rows]
 
     def has_data(self) -> bool:
         with self._lock:
-            row = self._conn.execute(
-                "SELECT COUNT(*) AS c FROM downloads"
-            ).fetchone()
+            row = self._conn.execute("SELECT COUNT(*) AS c FROM downloads").fetchone()
             return row["c"] > 0
 
     def migrate_from_json(self, lock_dir: str) -> None:

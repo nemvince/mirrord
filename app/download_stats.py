@@ -25,7 +25,9 @@ class DownloadStats:
     def top_files_list(self) -> list[tuple[str, int]]:
         with self._lock:
             return sorted(
-                self.top_files.items(), key=lambda x: x[1], reverse=True,
+                self.top_files.items(),
+                key=lambda x: x[1],
+                reverse=True,
             )[:MAX_TOP_FILES]
 
     def snapshot(self) -> dict:
@@ -60,8 +62,12 @@ class DownloadTracker:
             return self._stats[slug]
 
     def record_download(
-        self, slug: str, path: str, size: int,
-        ua: str | None = None, geocode: str | None = None,
+        self,
+        slug: str,
+        path: str,
+        size: int,
+        ua: str | None = None,
+        geocode: str | None = None,
     ) -> None:
         with self._lock:
             ds = self._stats.get(slug)

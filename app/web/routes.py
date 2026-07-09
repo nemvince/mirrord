@@ -274,14 +274,18 @@ async def download_stats_page(request: Request):
     daily_svg = svg_daily_chart(daily, title="Downloads per Day")
     geo_svg = svg_hbar_chart(
         geo_data or [{"geocode": "—", "count": 0}],
-        label_key="geocode", value_key="count",
-        title="Downloads by Geography", bar_color="#86b300",
+        label_key="geocode",
+        value_key="count",
+        title="Downloads by Geography",
+        bar_color="#86b300",
         max_label_w=80,
     )
     top_svg = svg_hbar_chart(
         top_files,
-        label_key="path", value_key="count",
-        title="Top Files", bar_color="#39bae6",
+        label_key="path",
+        value_key="count",
+        title="Top Files",
+        bar_color="#39bae6",
         max_label_w=200,
     )
     all_stats = _engine.get_all_stats() if _engine else []
@@ -295,15 +299,19 @@ async def download_stats_page(request: Request):
     if slug_datasets:
         by_slug_svg = svg_multi_hbar(
             [(title, data, "#ffb454") for title, data, _ in slug_datasets],
-            label_key="slug", value_key="count",
+            label_key="slug",
+            value_key="count",
             title="Downloads per Mirror",
             max_label_w=160,
         )
         # fall back to simple hbar if multi doesn't work well
         if not by_slug_svg:
             by_slug_svg = svg_hbar_chart(
-                by_slug, label_key="slug", value_key="count",
-                title="Downloads per Mirror", bar_color="#ffb454",
+                by_slug,
+                label_key="slug",
+                value_key="count",
+                title="Downloads per Mirror",
+                bar_color="#ffb454",
             )
 
     ctx = {
@@ -320,7 +328,8 @@ async def download_stats_page(request: Request):
 
 @router.get("/api/stats/downloads")
 async def api_download_stats(
-    slug: str | None = Query(default=None), days: int = Query(default=30),
+    slug: str | None = Query(default=None),
+    days: int = Query(default=30),
 ):
     if _engine is None or _engine.download_db is None:
         return {"error": "Engine not ready"}
@@ -457,8 +466,11 @@ async def browse_root(request: Request, slug: str):
             ip = _client_ip(request)
             geocode = _geoip.lookup(ip) if ip else None
             _engine.record_download(
-                slug, "/", _safe_getsize(ctx["file_path"]),
-                ua=request.headers.get("user-agent"), geocode=geocode,
+                slug,
+                "/",
+                _safe_getsize(ctx["file_path"]),
+                ua=request.headers.get("user-agent"),
+                geocode=geocode,
             )
         return FileResponse(ctx["file_path"])
     if ctx.get("browse_error"):
@@ -480,8 +492,11 @@ async def browse_path(request: Request, slug: str, rest: str):
             ip = _client_ip(request)
             geocode = _geoip.lookup(ip) if ip else None
             _engine.record_download(
-                slug, "/" + rest, _safe_getsize(ctx["file_path"]),
-                ua=request.headers.get("user-agent"), geocode=geocode,
+                slug,
+                "/" + rest,
+                _safe_getsize(ctx["file_path"]),
+                ua=request.headers.get("user-agent"),
+                geocode=geocode,
             )
         return FileResponse(ctx["file_path"])
     if ctx.get("browse_error"):

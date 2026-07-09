@@ -104,8 +104,7 @@ class SyncEngine:
             plugin.stats.load()
             # Initialise download tracker for this plugin
             summary = (
-                self.download_db.get_summary(pc.slug)
-                if self.download_db else None
+                self.download_db.get_summary(pc.slug) if self.download_db else None
             )
             self.download_tracker.ensure_plugin(pc.slug, db_summary=summary)
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
@@ -220,11 +219,19 @@ class SyncEngine:
         return [p.stats.snapshot() for p in self._get_plugins_snapshot()]
 
     def record_download(
-        self, slug: str, path: str, size: int,
-        ua: str | None = None, geocode: str | None = None,
+        self,
+        slug: str,
+        path: str,
+        size: int,
+        ua: str | None = None,
+        geocode: str | None = None,
     ) -> None:
         self.download_tracker.record_download(
-            slug, path, size, ua=ua, geocode=geocode,
+            slug,
+            path,
+            size,
+            ua=ua,
+            geocode=geocode,
         )
 
     def get_download_stats(self) -> dict[str, dict]:

@@ -91,21 +91,21 @@ def svg_daily_chart(
                 f'<text x="{lx:.1f}" y="{height - margin["b"] + 16}" '
                 f'fill="{DIM}" font-size="9" text-anchor="end" '
                 f'transform="rotate(-40, {lx:.1f}, {height - margin["b"] + 16})">'
-                f'{_esc(label)}</text>'
+                f"{_esc(label)}</text>"
             )
 
     return (
-        f'{_svg_frame(width, height)}'
+        f"{_svg_frame(width, height)}"
         f'<text x="{margin["l"]}" y="18" fill="{CREAM}" font-size="12" '
         f'font-weight="bold">{_esc(title)}</text>'
-        f'{"".join(grid)}'
-        f'{"".join(labels_alt)}'
-        f'{"".join(bars)}'
-        f'{"".join(labels_x)}'
+        f"{''.join(grid)}"
+        f"{''.join(labels_alt)}"
+        f"{''.join(bars)}"
+        f"{''.join(labels_x)}"
         f'<line x1="{margin["l"]}" y1="{margin["t"] + ch}" '
         f'x2="{margin["l"] + cw}" y2="{margin["t"] + ch}" '
         f'stroke="{DIM}" stroke-width="1" />'
-        f'</svg>'
+        f"</svg>"
     )
 
 
@@ -164,7 +164,7 @@ def svg_hbar_chart(
         labels.append(
             f'<text x="{pad_l - 6}" y="{by + bar_h / 2 + 3.5}" '
             f'fill="{DIM}" font-size="10" text-anchor="end">'
-            f'{label}</text>'
+            f"{label}</text>"
         )
         values.append(
             f'<text x="{pad_l + max(2, bw) + 6}" y="{by + bar_h / 2 + 3.5}" '
@@ -172,20 +172,20 @@ def svg_hbar_chart(
         )
 
     return (
-        f'{_svg_frame(width, h)}'
+        f"{_svg_frame(width, h)}"
         f'<text x="{pad_l}" y="18" fill="{CREAM}" font-size="12" '
         f'font-weight="bold">{_esc(title)}</text>'
-        f'{"".join(grid)}'
-        f'{"".join(bars)}'
-        f'{"".join(labels)}'
-        f'{"".join(values)}'
+        f"{''.join(grid)}"
+        f"{''.join(bars)}"
+        f"{''.join(labels)}"
+        f"{''.join(values)}"
         f'<line x1="{pad_l}" y1="{pad_t}" '
         f'x2="{pad_l}" y2="{pad_t + ch}" '
         f'stroke="{DIM}" stroke-width="1" />'
         f'<line x1="{pad_l}" y1="{pad_t + ch}" '
         f'x2="{pad_l + cw}" y2="{pad_t + ch}" '
         f'stroke="{DIM}" stroke-width="1" />'
-        f'</svg>'
+        f"</svg>"
     )
 
 
@@ -249,7 +249,7 @@ def svg_multi_hbar(
             labels.append(
                 f'<text x="{pad_l - 6}" y="{by + bar_h / 2 + 3.5}" '
                 f'fill="{DIM}" font-size="10" text-anchor="end">'
-                f'{label}</text>'
+                f"{label}</text>"
             )
             values.append(
                 f'<text x="{pad_l + max(2, bw) + 6}" y="{by + bar_h / 2 + 3.5}" '
@@ -258,18 +258,18 @@ def svg_multi_hbar(
         cur_y += len(group_data) * row_h + group_gap
 
     return (
-        f'{_svg_frame(width, h)}'
+        f"{_svg_frame(width, h)}"
         f'<text x="{pad_l}" y="18" fill="{CREAM}" font-size="12" '
         f'font-weight="bold">{_esc(title)}</text>'
-        f'{"".join(grid)}'
-        f'{"".join(bars)}'
-        f'{"".join(labels)}'
-        f'{"".join(values)}'
+        f"{''.join(grid)}"
+        f"{''.join(bars)}"
+        f"{''.join(labels)}"
+        f"{''.join(values)}"
         f'<line x1="{pad_l}" y1="{pad_t}" '
         f'x2="{pad_l}" y2="{pad_t + ch}" '
         f'stroke="{DIM}" stroke-width="1" />'
         f'<line x1="{pad_l}" y1="{pad_t + ch}" '
         f'x2="{pad_l + cw}" y2="{pad_t + ch}" '
         f'stroke="{DIM}" stroke-width="1" />'
-        f'</svg>'
+        f"</svg>"
     )

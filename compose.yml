@@ -3,6 +3,7 @@ services:
     image: ghcr.io/nemvince/mirrord:latest
     ports:
       - "8080:8080"
+    restart: unless-stopped
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - /mirrors:/data
@@ -10,4 +11,3 @@ services:
 
 volumes:
   mirrord_db:
-    restart: unless-stopped

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>mirrord — Download Stats</title>
+        <link rel="stylesheet" href="/static/output.css" />
+        <link rel="icon" type="image/png" href="/static/MIROICON.png" />
+    </head>
+    <body
+        class="min-h-dvh py-4 mx-auto max-w-3xl px-4 lg:px-0"
+        style="
+            background-color: #0a0e14;
+            font-family:
+                &quot;IBM Plex Mono&quot;, &quot;Courier New&quot;, Courier,
+                monospace;
+            color: #bfbdb6;
+            font-size: 14px;
+            line-height: 1.6;
+        "
+    >
+        <div
+            class="mb-8 pb-3 border-b border-[#283040] flex justify-between items-end"
+        >
+            <div>
+                <h1 class="text-2xl" style="color: #e6e1cf; font-weight: 700">
+                    <a class="no-underline" style="color: #e6e1cf" href="/"
+                        >mirrord</a
+                    >
+                </h1>
+                <span style="color: #5c6773; font-size: 0.75rem"
+                    >download stats</span
+                >
+            </div>
+            <div style="font-size: 0.75rem; display: flex; gap: 0.75rem">
+                <a
+                    style="color: #59c2ff; text-decoration: none"
+                    href="/"
+                    onmouseover="this.style.textDecoration = 'underline'"
+                    onmouseout="this.style.textDecoration = 'none'"
+                    >&larr; dashboard</a
+                >
+            </div>
+        </div>
+
+        {% if overview %}
+        <div
+            style="
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 1.5rem;
+            "
+        >
+            <div class="panel">
+                <div class="panel-hdr">Total Downloads</div>
+                <div class="panel-val" id="total-downloads">
+                    {{ overview.total_downloads }}
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Total Served</div>
+                <div class="panel-val" id="total-bytes">
+                    {{ "%.2f"|format(overview.total_bytes / 1073741824) }}
+                    <span style="font-size: 0.7rem; color: #5c6773">GiB</span>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Unique Files</div>
+                <div class="panel-val" id="unique-files">
+                    {{ overview.unique_files }}
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Today</div>
+                <div class="panel-val" id="today">
+                    {{ overview.today_downloads }}
+                    <span style="font-size: 0.7rem; color: #5c6773">dl</span>
+                </div>
+                <div style="color: #5c6773; font-size: 0.65rem">
+                    {{ "%.2f"|format(overview.today_bytes / 1073741824) }} GiB
+                    served
+                </div>
+            </div>
+        </div>
+        {% endif %} {% if daily_svg %}
+        <div class="panel" style="margin-bottom: 0.75rem">
+            {{ daily_svg | safe }}
+        </div>
+        {% endif %}
+
+        <div
+            style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+                margin-bottom: 0.75rem;
+            "
+        >
+            {% if geo_svg %}
+            <div class="panel">{{ geo_svg | safe }}</div>
+            {% endif %} {% if by_slug_svg %}
+            <div class="panel">{{ by_slug_svg | safe }}</div>
+            {% endif %}
+        </div>
+
+        {% if top_svg %}
+        <div class="panel" style="margin-bottom: 0.75rem">
+            {{ top_svg | safe }}
+        </div>
+        {% endif %} {% if recent %}
+        <div class="panel" style="margin-bottom: 0.75rem">
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    padding: 0.5rem 0.75rem;
+                    border-bottom: 1px solid #1f2430;
+                "
+            >
+                <span
+                    style="
+                        color: #5c6773;
+                        font-size: 0.65rem;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                    "
+                    >Recent Activity</span
+                >
+            </div>
+            <div
+                style="padding: 0.5rem 0.75rem; font-size: 0.7rem"
+                id="recent-body"
+            >
+                <div
+                    style="
+                        display: flex;
+                        gap: 0.5rem;
+                        padding-bottom: 0.375rem;
+                        margin-bottom: 0.375rem;
+                        border-bottom: 1px solid #1f2430;
+                        color: #5c6773;
+                    "
+                >
+                    <span style="width: 140px; flex-shrink: 0">Time</span>
+                    <span style="width: 110px; flex-shrink: 0">Mirror</span>
+                    <span style="flex: 1">File</span>
+                    <span style="width: 70px; flex-shrink: 0; text-align: right"
+                        >Size</span
+                    >
+                    <span style="width: 50px; flex-shrink: 0; text-align: right"
+                        >Origin</span
+                    >
+                </div>
+                {% for r in recent %}
+                <div
+                    style="display: flex; gap: 0.5rem; padding: 0.2rem 0"
+                    data-ts="{{ r.ts }}"
+                >
+                    <span style="color: #5c6773; width: 140px; flex-shrink: 0"
+                        >{{ r.ts|int|datetime }}</span
+                    >
+                    <span
+                        style="
+                            color: #ffb454;
+                            width: 110px;
+                            flex-shrink: 0;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        "
+                        title="{{ r.slug }}"
+                        >{{ r.slug }}</span
+                    >
+                    <span
+                        style="
+                            color: #e6e1cf;
+                            flex: 1;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        "
+                        title="{{ r.path }}"
+                        >{{ r.path|truncate(55) }}</span
+                    >
+                    <span
+                        style="
+                            color: #5c6773;
+                            width: 70px;
+                            flex-shrink: 0;
+                            text-align: right;
+                        "
+                        >{{ "%.1f"|format(r.size / 1048576) }} MiB</span
+                    >
+                    <span
+                        style="
+                            color: #5c6773;
+                            width: 50px;
+                            flex-shrink: 0;
+                            text-align: right;
+                        "
+                        >{{ r.geocode or "—" }}</span
+                    >
+                </div>
+                {% endfor %} {% if not recent %}
+                <div
+                    style="
+                        color: #5c6773;
+                        text-align: center;
+                        padding: 1.5rem 0;
+                    "
+                >
+                    No activity yet.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div
+            style="
+                margin-top: 1rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid #283040;
+                font-size: 0.7rem;
+                color: #3a4452;
+            "
+        >
+            mirrord {{ version }} &mdash; loaded
+            <span id="loaded-at">{{ now|int|datetime }}</span>
+        </div>
+
+        <style>
+            .panel {
+                background-color: #0a0e14;
+                border: 1px solid #283040;
+                overflow: hidden;
+            }
+            .panel-hdr {
+                font-size: 0.65rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #5c6773;
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #1f2430;
+            }
+            .panel-val {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #e6e1cf;
+                padding: 0.75rem;
+            }
+        </style>
+    </body>
+</html>

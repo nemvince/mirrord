@@ -7,6 +7,14 @@ server:
   host: "0.0.0.0"
   port: 8080
 
+# Optional: GeoIP database path for download geolocation stats.
+# If not set, mirrord checks common locations:
+#   /usr/share/GeoIP/GeoLite2-Country.mmdb
+#   /var/lib/GeoIP/GeoLite2-Country.mmdb
+# Also supported via MIRRORD_GEOIP_DB environment variable.
+# Requires: pip install mirrord[geoip]
+# geoip_db: "/path/to/GeoLite2-Country.mmdb"
+
 sync:
   # How often to run sync jobs (in seconds).  6–24 h recommended
   # for public mirrors — be kind to upstream bandwidth.

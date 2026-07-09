@@ -13,7 +13,10 @@
       <h1 class="text-2xl text-cream font-bold"><a class="text-cream no-underline hover:underline" href="/">mirrord</a></h1>
       <span class="text-dim text-xs">/{{ browse_slug }}{% if browse_path != '/' %}{{ browse_path }}{% endif %}</span>
     </div>
-    <div class="text-xs"><a class="text-ember no-underline hover:underline" href="/">&larr; index</a></div>
+    <div class="text-xs flex gap-x-3">
+      <a class="text-glow no-underline hover:underline" href="/stats/">stats</a>
+      <a class="text-ember no-underline hover:underline" href="/">&larr; index</a>
+    </div>
   </div>
 
   {% if browse_error %}

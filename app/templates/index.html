@@ -8,9 +8,12 @@
   <link rel="icon" type="image/png" href="/static/MIROICON.png">
 </head>
 <body class="h-full flex flex-col py-4 mx-auto max-w-3xl px-4 lg:px-0">
-    <div class="mb-8 pb-3 border-b border-outline">
-      <h1 class="text-2xl text-cream font-bold">mirrord</h1>
-      <span class="text-dim text-xs">mirror sync server</span>
+    <div class="mb-8 pb-3 border-b border-outline flex justify-between items-end">
+      <div>
+        <h1 class="text-2xl text-cream font-bold">mirrord</h1>
+        <span class="text-dim text-xs">mirror sync server</span>
+      </div>
+      <div class="text-xs"><a class="text-glow no-underline hover:underline" href="/stats/">stats &rarr;</a></div>
     </div>
 
     {% if disk_total or stats %}

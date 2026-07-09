@@ -7,6 +7,7 @@ import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import get_config, reload_config
+from app.db import DownloadDB
 from app.download_stats import DownloadTracker
 from app.plugins.registry import get_plugin
 
@@ -27,6 +28,7 @@ class SyncEngine:
         self._socket_thread = None
         self._config_mtime: float = 0
         self._reload_lock = threading.Lock()
+        self.download_db: DownloadDB | None = None
         self.download_tracker = DownloadTracker()
 
     def _get_plugins_snapshot(self) -> list:
@@ -45,6 +47,11 @@ class SyncEngine:
             return
         self._started_event.set()
         self._record_config_mtime()
+        db_path = os.path.join(self.config.sync.lock_dir, "mirrord.db")
+        self.download_db = DownloadDB(db_path)
+        if self.config.sync.lock_dir and not self.download_db.has_data():
+            self.download_db.migrate_from_json(self.config.sync.lock_dir)
+        self.download_tracker = DownloadTracker(db=self.download_db)
         self._init_plugins()
         interval = self.config.sync.interval
         self.scheduler.add_job(
@@ -96,12 +103,11 @@ class SyncEngine:
             )
             plugin.stats.load()
             # Initialise download tracker for this plugin
-            self.download_tracker.ensure_plugin(
-                pc.slug,
-                stats_path=os.path.join(
-                    self.config.sync.lock_dir, f"{pc.slug}.download_stats.json"
-                ),
+            summary = (
+                self.download_db.get_summary(pc.slug)
+                if self.download_db else None
             )
+            self.download_tracker.ensure_plugin(pc.slug, db_summary=summary)
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
         with self._plugins_lock:
             self._plugins = new_plugins
@@ -153,7 +159,7 @@ class SyncEngine:
 
             self.config = new_config
             self._record_config_mtime()
-            self._init_plugins()  # atomically swaps self._plugins
+            self._init_plugins()
 
             # Prune download stats for removed plugins
             active_slugs = {p.stats.slug for p in self._get_plugins_snapshot()}
@@ -213,8 +219,13 @@ class SyncEngine:
     def get_all_stats(self) -> list:
         return [p.stats.snapshot() for p in self._get_plugins_snapshot()]
 
-    def record_download(self, slug: str, path: str, size: int) -> None:
-        self.download_tracker.record_download(slug, path, size)
+    def record_download(
+        self, slug: str, path: str, size: int,
+        ua: str | None = None, geocode: str | None = None,
+    ) -> None:
+        self.download_tracker.record_download(
+            slug, path, size, ua=ua, geocode=geocode,
+        )
 
     def get_download_stats(self) -> dict[str, dict]:
         return self.download_tracker.get_all_snapshots()

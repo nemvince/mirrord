@@ -45,6 +45,27 @@ def set_engine(engine: SyncEngine) -> None:
     _engine = engine
 
 
+def _strip_port(token: str) -> str:
+    """Extract the bare IP from an address token that may carry a port.
+
+    Handles the forms that appear in proxy headers:
+      - ``1.2.3.4``            -> ``1.2.3.4``
+      - ``1.2.3.4:443``        -> ``1.2.3.4``
+      - ``[2001:db8::1]:443``  -> ``2001:db8::1``
+      - ``2001:db8::1``        -> ``2001:db8::1`` (bare IPv6, must NOT be split)
+    """
+    token = token.strip()
+    if not token:
+        return token
+    if token.startswith("["):  # bracketed IPv6 literal, optionally with :port
+        return token[1:].split("]", 1)[0]
+    # A single colon means IPv4:port; multiple colons means a bare IPv6 address
+    # (which we must leave intact).
+    if token.count(":") == 1:
+        return token.split(":", 1)[0]
+    return token
+
+
 def _client_ip(request: RequestLike) -> str | None:
     """Return the real client IP, honouring proxy headers only from trusted peers.
 
@@ -67,15 +88,15 @@ def _client_ip(request: RequestLike) -> str | None:
     if xff:
         hops = [h.strip() for h in xff.split(",") if h.strip()]
         for hop in reversed(hops):
-            ip = hop.split(":")[0]  # strip optional port
+            ip = _strip_port(hop)
             if not sync_cfg.is_trusted_proxy(ip):
                 return ip
         # Every hop was a trusted proxy; fall back to leftmost.
-        return hops[0].split(":")[0]
+        return _strip_port(hops[0])
 
     x_real = request.headers.get("x-real-ip")
     if x_real:
-        return x_real.strip().split(":")[0]
+        return _strip_port(x_real)
 
     fwd = request.headers.get("forwarded")
     if fwd:
@@ -84,9 +105,7 @@ def _client_ip(request: RequestLike) -> str | None:
             part = part.strip()
             if part.lower().startswith("for="):
                 token = part[4:].strip().strip('"')
-                if token.startswith("["):  # IPv6 literal
-                    return token[1:].split("]")[0]
-                return token.split(":")[0]
+                return _strip_port(token)
     return peer
 
 
@@ -322,13 +341,16 @@ async def download_stats_page(request: Request):
     by_slug = overview["by_slug"]
 
     daily_svg = svg_daily_chart(daily, title="Downloads per Day")
+    # Geography and per-mirror charts share styling (size, label width) so the
+    # two side-by-side panels line up; only the bar colour differs.
+    _side_chart_kw = {"width": 360, "height": 240, "max_label_w": 80}
     geo_svg = svg_hbar_chart(
         geo_data or [{"geocode": "—", "count": 0}],
         label_key="geocode",
         value_key="count",
         title="Downloads by Geography",
         bar_color="#86b300",
-        max_label_w=80,
+        **_side_chart_kw,
     )
     top_svg = svg_hbar_chart(
         top_files,
@@ -353,6 +375,7 @@ async def download_stats_page(request: Request):
             value_key="count",
             title="Downloads per Mirror",
             bar_color="#ffb454",
+            **_side_chart_kw,
         )
 
     ctx = {

@@ -5,14 +5,32 @@ dependencies, no JavaScript). Every function returns a standalone, fully
 static ``<svg>`` string suitable for embedding directly into an HTML page.
 """
 
+import re
 from typing import Any
 
 from charted import BarChart, ColumnChart, Theme
 
+# Matches the fixed width/height attributes charted emits on the <svg> root.
+_ROOT_RE = re.compile(
+    r'(<svg\b[^>]*?)\s+width="[\d.]+"\s+height="[\d.]+"',
+    re.IGNORECASE,
+)
+
 
 def _render(chart: Any) -> str:
-    """Render a charted chart to a standalone, JS-free SVG string."""
-    return chart.to_svg()
+    """Render a charted chart to a standalone, JS-free SVG string.
+
+    charted emits fixed pixel ``width``/``height`` on the root ``<svg>``, which
+    overflows narrow container boxes. We drop those attributes and add
+    responsive styling so the chart scales to its parent while preserving its
+    aspect ratio via the ``viewBox``.
+    """
+    svg = chart.to_svg()
+    return _ROOT_RE.sub(
+        r'\1 style="display:block;width:100%;height:auto"',
+        svg,
+        count=1,
+    )
 
 # Ayu-dark palette (kept for backwards-compatible imports / call sites).
 INK = "#0a0e14"

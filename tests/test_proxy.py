@@ -125,6 +125,36 @@ def test_trusted_proxy_ipv6_forwarded(engine: SyncEngine) -> None:
     assert _client_ip(req) == "2001:db8::1"
 
 
+def test_trusted_proxy_ipv6_xff_bare(engine: SyncEngine) -> None:
+    # Bare IPv6 client in X-Forwarded-For must not be mangled by port-stripping.
+    req = _FakeRequest(
+        "172.20.0.2",
+        {"x-forwarded-for": "2001:db8::42, 10.0.0.1"},
+    )
+    assert _client_ip(req) == "2001:db8::42"
+
+
+def test_trusted_proxy_ipv6_xff_bracketed_port(engine: SyncEngine) -> None:
+    req = _FakeRequest(
+        "172.20.0.2",
+        {"x-forwarded-for": "[2001:db8::99]:51234, 10.0.0.1"},
+    )
+    assert _client_ip(req) == "2001:db8::99"
+
+
+def test_trusted_proxy_ipv6_x_real_ip(engine: SyncEngine) -> None:
+    req = _FakeRequest("172.20.0.2", {"x-real-ip": "2001:db8::7"})
+    assert _client_ip(req) == "2001:db8::7"
+
+
+def test_ipv4_xff_strips_port(engine: SyncEngine) -> None:
+    req = _FakeRequest(
+        "172.20.0.2",
+        {"x-forwarded-for": "198.51.100.7:44321, 10.0.0.1"},
+    )
+    assert _client_ip(req) == "198.51.100.7"
+
+
 def test_trusted_proxy_all_hops_internal_falls_back(engine: SyncEngine) -> None:
     req = _FakeRequest(
         "172.20.0.2",

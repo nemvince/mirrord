@@ -16,36 +16,6 @@
       <div class="text-xs"><a class="text-glow no-underline hover:underline" href="/stats/">stats &rarr;</a></div>
     </div>
 
-    {% if disk_total or stats %}
-    <div class="mb-6 border border-outline">
-      <div class="text-xs font-bold uppercase text-dim px-3 py-1.5 border-b border-outline tracking-wider">Global</div>
-      <div class="p-3">
-        <div class="grid grid-cols-2 max-sm:grid-cols-1 gap-x-6 gap-y-2">
-          {% if disk_total %}
-          <div class="flex justify-between"><span class="text-dim">Disk Total</span><span>{{ "%.1f"|format(disk_total / 1073741824) }} GiB</span></div>
-          <div class="flex justify-between"><span class="text-dim">Disk Used</span><span>{{ "%.1f"|format(disk_used / 1073741824) }} GiB</span></div>
-          <div class="flex justify-between"><span class="text-dim">Disk Free</span><span>{{ "%.1f"|format(disk_free / 1073741824) }} GiB</span></div>
-          {% set dpct = (disk_used / disk_total * 100) if disk_total else 0 %}
-          <div class="flex justify-between"><span class="text-dim">Usage</span><span>{{ "%.1f"|format(dpct) }}%</span></div>
-          {% endif %}
-          {% if stats %}
-          <div class="flex justify-between"><span class="text-dim">Mirrors</span><span>{{ stats|length }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Total Syncs</span><span id="global-syncs">{{ total_syncs }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Failures</span><span id="global-fails">{{ total_failures }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Transferred</span><span id="global-xfer">{{ "%.1f"|format(total_bytes / 1073741824) }} GiB</span></div>
-          <div class="flex justify-between"><span class="text-dim">Downloads</span><span id="global-downloads">{{ total_downloads }}</span></div>
-          <div class="flex justify-between"><span class="text-dim">Served</span><span id="global-served">{{ "%.1f"|format(total_bytes_served / 1073741824) }} GiB</span></div>
-          <div class="flex justify-between" id="global-syncing-row"{% if not now_syncing %} style="display:none"{% endif %}><span class="text-dim">Syncing Now</span><span id="global-syncing">{{ now_syncing }}</span></div>
-          <div class="flex justify-between" id="global-next-row"{% if not next_sync_ts %} style="display:none"{% endif %}><span class="text-dim">Next Sync</span><span id="global-next">{% if next_sync_ts %}{% set secs = (next_sync_ts - now)|int %}{% if secs > 3600 %}{{ (secs / 3600)|int }}h {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{ (secs / 60)|int }}m {{ (secs % 60) }}s{% else %}{{ secs }}s{% endif %}{% endif %}</span></div>
-          {% endif %}
-        </div>
-        {% if disk_total %}
-        <div class="bar" id="global-disk-bar-wrap"><div class="bar-fill" id="global-disk-bar" style="width:{{ "%.1f"|format(dpct) }}%"></div></div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
     {% if stats %}
     {% set charts = stats|selectattr('dir_size', 'gt', 0)|list %}
     {% if charts %}

@@ -1,9 +1,12 @@
 import ipaddress
+import logging
 import os
 import re
 import threading
 
 import yaml
+
+logger = logging.getLogger("mirrord.config")
 
 
 def _slugify(name: str) -> str:
@@ -83,6 +86,13 @@ class Config:
         self.server = ServerConfig(raw.get("server", {}))
         self.sync = SyncConfig(raw.get("sync", {}))
         self.plugins = [PluginConfig(p) for p in raw.get("plugins", [])]
+        logger.debug(
+            "Loaded config from %s: %d plugins (%d enabled), interval=%ds",
+            path,
+            len(self.plugins),
+            len(self.enabled_plugins),
+            self.sync.interval,
+        )
 
     @property
     def enabled_plugins(self) -> list[PluginConfig]:

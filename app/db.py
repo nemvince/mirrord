@@ -1,5 +1,6 @@
 import glob
 import json
+import logging
 import os
 import sqlite3
 import threading
@@ -7,6 +8,8 @@ import time
 from datetime import datetime
 
 from app.models import SyncJobStats, SyncStatus
+
+logger = logging.getLogger("mirrord.db")
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS downloads (
@@ -67,6 +70,7 @@ class DownloadDB:
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         self._init_schema()
+        logger.debug("Opened download DB at %s", db_path)
 
     # ── low-level helpers ──────────────────────────────────────────
 
@@ -346,12 +350,19 @@ class DownloadDB:
         table in an earlier release.)
         """
         json_files = glob.glob(os.path.join(lock_dir, "*.stats.json"))
+        if json_files:
+            logger.debug(
+                "Migrating %d legacy stats JSON file(s) from %s",
+                len(json_files),
+                lock_dir,
+            )
         for jf in json_files:
             slug = os.path.basename(jf).replace(".stats.json", "")
             try:
                 with open(jf) as f:
                     data = json.load(f)
             except (OSError, json.JSONDecodeError):
+                logger.debug("Skipping unreadable stats file %s", jf)
                 continue
             identity = self.load_plugin_stats(slug)
             self._execute(
@@ -404,3 +415,5 @@ class DownloadDB:
                 os.remove(jf)
             except OSError:
                 pass
+            else:
+                logger.debug("Migrated and removed legacy stats file %s", jf)

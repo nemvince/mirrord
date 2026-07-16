@@ -1,6 +1,7 @@
 import os
 import shutil
 import time
+import logging
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,8 @@ from app.geo import GeoIP
 from app.sync_engine import SyncEngine
 
 router = APIRouter()
+
+logger = logging.getLogger("mirrord.web")
 
 _engine: SyncEngine | None = None
 _geoip = GeoIP()
@@ -90,8 +93,19 @@ def _client_ip(request: RequestLike) -> str | None:
         for hop in reversed(hops):
             ip = _strip_port(hop)
             if not sync_cfg.is_trusted_proxy(ip):
+                logger.debug(
+                    "Resolved client IP %s from XFF %r via trusted peer %s",
+                    ip,
+                    xff,
+                    peer,
+                )
                 return ip
         # Every hop was a trusted proxy; fall back to leftmost.
+        logger.debug(
+            "All XFF hops trusted (%r), falling back to leftmost via peer %s",
+            xff,
+            peer,
+        )
         return _strip_port(hops[0])
 
     x_real = request.headers.get("x-real-ip")
@@ -251,36 +265,16 @@ def _browse_context(slug: str, subpath: str) -> dict:
 async def index(request: Request):
     stats = _engine.get_all_stats() if _engine else []
 
-    # Global disk (first plugin's filesystem)
-    disk_total = disk_used = disk_free = 0
-    if _engine and _engine.plugins:
-        disk_total, disk_used, disk_free = _disk_usage_for_plugin(_engine.plugins[0])
-
     next_sync_ts = _engine.get_next_sync_time() if _engine else None
 
-    total_syncs = sum(s.total_syncs for s in stats)
-    total_failures = sum(s.total_failures for s in stats)
-    total_bytes = sum(s.total_bytes_transferred for s in stats)
-    now_syncing = sum(1 for s in stats if s.status.value == "running")
-
     dl_stats = _engine.get_download_stats() if _engine else {}
-    total_downloads = sum(d.get("total_downloads", 0) for d in dl_stats.values())
-    total_bytes_served = sum(d.get("total_bytes_served", 0) for d in dl_stats.values())
+    max_dir_size = max((s.dir_size for s in stats), default=0)
 
     ctx = {
         "now": time.time(),
         "stats": stats,
-        "disk_total": disk_total,
-        "disk_used": disk_used,
-        "disk_free": disk_free,
         "next_sync_ts": next_sync_ts,
-        "total_syncs": total_syncs,
-        "total_failures": total_failures,
-        "total_bytes": total_bytes,
-        "now_syncing": now_syncing,
-        "max_dir_size": max((s.dir_size for s in stats), default=0),
-        "total_downloads": total_downloads,
-        "total_bytes_served": total_bytes_served,
+        "max_dir_size": max_dir_size,
         "dl_stats": dl_stats,
     }
     return request.app.state.templates.TemplateResponse(request, "index.html", ctx)
@@ -362,6 +356,17 @@ async def download_stats_page(request: Request):
     )
     all_stats = _engine.get_all_stats() if _engine else []
     slug_labels = {s.slug: s.plugin_name for s in all_stats}
+
+    disk_total = disk_used = disk_free = 0
+    if _engine and _engine.plugins:
+        disk_total, disk_used, disk_free = _disk_usage_for_plugin(_engine.plugins[0])
+
+    total_syncs = sum(s.total_syncs for s in all_stats)
+    total_failures = sum(s.total_failures for s in all_stats)
+    total_bytes = sum(s.total_bytes_transferred for s in all_stats)
+    now_syncing = sum(1 for s in all_stats if s.status.value == "running")
+    next_sync_ts = _engine.get_next_sync_time() if _engine else None
+
     by_slug_named = [
         {"slug": slug_labels.get(s["slug"], s["slug"]), "count": s["count"]}
         for s in by_slug
@@ -386,6 +391,15 @@ async def download_stats_page(request: Request):
         "top_svg": top_svg,
         "by_slug_svg": by_slug_svg,
         "recent": recent,
+        "disk_total": disk_total,
+        "disk_used": disk_used,
+        "disk_free": disk_free,
+        "mirrors": len(all_stats),
+        "total_syncs": total_syncs,
+        "total_failures": total_failures,
+        "total_bytes": total_bytes,
+        "now_syncing": now_syncing,
+        "next_sync_ts": next_sync_ts,
     }
     return request.app.state.templates.TemplateResponse(request, "stats.html", ctx)
 

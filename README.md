@@ -78,6 +78,8 @@ plugins:
 |---|---|---|
 | `MIRRORD_CONFIG` | `config.yaml` | Config file path |
 | `MIRRORD_SOCKET` | `/tmp/mirrord/control.sock` | Control socket path |
+| `MIRRORD_LOG_LEVEL` | `INFO` | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+| `MIRRORD_GEOIP_DB` | _(auto-detect)_ | Path to a GeoLite2 Country `.mmdb` database |
 
 ## API
 

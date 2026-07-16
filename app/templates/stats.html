@@ -79,7 +79,86 @@
                 </div>
             </div>
         </div>
-        {% endif %} {% if daily_svg %}
+        {% endif %}
+
+        <div class="panel" style="margin-bottom: 0.75rem">
+            <div class="panel-hdr">Global</div>
+            <div
+                style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.5rem 1rem;
+                    padding: 0.75rem;
+                    font-size: 0.8rem;
+                "
+            >
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Mirrors</span
+                    ><span style="color: #e6e1cf">{{ mirrors }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Total Syncs</span
+                    ><span style="color: #e6e1cf">{{ total_syncs }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Failures</span
+                    ><span style="color: #e6e1cf">{{ total_failures }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Transferred</span
+                    ><span style="color: #e6e1cf"
+                        >{{ "%.2f"|format(total_bytes / 1073741824) }} GiB</span
+                    >
+                </div>
+                {% if now_syncing %}
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Syncing Now</span
+                    ><span style="color: #e6e1cf">{{ now_syncing }}</span>
+                </div>
+                {% endif %}
+                {% if next_sync_ts %}
+                {% set secs = (next_sync_ts - now)|int %}
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Next Sync</span
+                    ><span style="color: #e6e1cf"
+                        >{% if secs > 3600 %}{{ (secs / 3600)|int }}h
+                        {{ ((secs % 3600) / 60)|int }}m{% elif secs > 60 %}{{
+                        (secs / 60)|int }}m {{ (secs % 60) }}s{% else %}{{ secs }}s{%
+                        endif %}</span
+                    >
+                </div>
+                {% endif %}
+                {% if disk_total %}
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Disk Total</span
+                    ><span style="color: #e6e1cf"
+                        >{{ "%.1f"|format(disk_total / 1073741824) }} GiB</span
+                    >
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Disk Used</span
+                    ><span style="color: #e6e1cf"
+                        >{{ "%.1f"|format(disk_used / 1073741824) }} GiB</span
+                    >
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Disk Free</span
+                    ><span style="color: #e6e1cf"
+                        >{{ "%.1f"|format(disk_free / 1073741824) }} GiB</span
+                    >
+                </div>
+                {% set dpct = (disk_used / disk_total * 100) if disk_total else 0 %}
+                <div style="display: flex; justify-content: space-between">
+                    <span style="color: #5c6773">Usage</span
+                    ><span style="color: #e6e1cf"
+                        >{{ "%.1f"|format(dpct) }}%</span
+                    >
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if daily_svg %}
         <div class="panel" style="margin-bottom: 0.75rem">
             {{ daily_svg | safe }}
         </div>

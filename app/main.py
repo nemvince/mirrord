@@ -13,12 +13,20 @@ from app.plugins.registry import register_builtins
 from app.sync_engine import SyncEngine
 from app.web.routes import router, set_engine
 
+_LOG_LEVEL_NAME = os.environ.get("MIRRORD_LOG_LEVEL", "INFO").upper()
+_LOG_LEVEL = getattr(logging, _LOG_LEVEL_NAME, logging.INFO)
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=_LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stderr,
 )
 logger = logging.getLogger("mirrord")
+
+if not isinstance(getattr(logging, _LOG_LEVEL_NAME, None), int):
+    logger.warning(
+        "Unknown MIRRORD_LOG_LEVEL %r, falling back to INFO", _LOG_LEVEL_NAME
+    )
 
 
 def datetime_filter(ts: float, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:

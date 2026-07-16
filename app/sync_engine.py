@@ -124,6 +124,9 @@ class SyncEngine:
                     continue
                 if mtime != self._config_mtime:
                     logger.info("Config file changed, reloading...")
+                    logger.debug(
+                        "Config mtime changed: %s -> %s", self._config_mtime, mtime
+                    )
                     self._reload_engine()
 
         thread = threading.Thread(target=_watch, daemon=True, name="config-watcher")
@@ -175,7 +178,9 @@ class SyncEngine:
             )
 
     def _run_all(self) -> None:
-        for plugin in self._get_plugins_snapshot():
+        plugins = self._get_plugins_snapshot()
+        logger.debug("Scheduled run_all dispatching %d plugins", len(plugins))
+        for plugin in plugins:
             thread = threading.Thread(
                 target=self._run_plugin, args=(plugin,), daemon=True
             )
@@ -186,29 +191,34 @@ class SyncEngine:
         if lock is None:
             lock = threading.Lock()
             self._plugin_locks[plugin.stats.slug] = lock
-        with lock:
-            try:
-                logger.info("Syncing %s...", plugin.stats.plugin_name)
-                plugin.sync()
-                if plugin.stats.status.value == "failed":
-                    logger.error(
-                        "Sync %s failed: %s (%.1fs)",
-                        plugin.stats.plugin_name,
-                        plugin.stats.last_error or "unknown",
-                        plugin.stats.last_duration or 0,
-                    )
-                else:
-                    logger.info(
-                        "Sync %s: %s (%.1fs)",
-                        plugin.stats.plugin_name,
-                        plugin.stats.status.value,
-                        plugin.stats.last_duration or 0,
-                    )
-            except Exception as e:
-                logger.error("Sync %s failed: %s", plugin.stats.plugin_name, e)
-            finally:
-                if self.download_db is not None:
-                    self.download_db.save_plugin_stats(plugin.stats.slug, plugin.stats)
+        if not lock.acquire(blocking=False):
+            logger.debug(
+                "Sync %s already running, waiting for lock", plugin.stats.plugin_name
+            )
+            lock.acquire()
+        try:
+            logger.info("Syncing %s...", plugin.stats.plugin_name)
+            plugin.sync()
+            if plugin.stats.status.value == "failed":
+                logger.error(
+                    "Sync %s failed: %s (%.1fs)",
+                    plugin.stats.plugin_name,
+                    plugin.stats.last_error or "unknown",
+                    plugin.stats.last_duration or 0,
+                )
+            else:
+                logger.info(
+                    "Sync %s: %s (%.1fs)",
+                    plugin.stats.plugin_name,
+                    plugin.stats.status.value,
+                    plugin.stats.last_duration or 0,
+                )
+        except Exception as e:
+            logger.error("Sync %s failed: %s", plugin.stats.plugin_name, e)
+        finally:
+            if self.download_db is not None:
+                self.download_db.save_plugin_stats(plugin.stats.slug, plugin.stats)
+            lock.release()
 
     def get_all_stats(self) -> list:
         return [p.stats.snapshot() for p in self._get_plugins_snapshot()]
@@ -222,6 +232,13 @@ class SyncEngine:
         geocode: str | None = None,
     ) -> None:
         if self.download_db is not None:
+            logger.debug(
+                "Recording download slug=%s path=%s size=%d geo=%s",
+                slug,
+                path,
+                size,
+                geocode,
+            )
             self.download_db.record(slug, path, size, ua=ua, geocode=geocode)
 
     def get_download_stats(self) -> dict[str, dict]:
@@ -356,6 +373,7 @@ class SyncEngine:
             return {"ok": False, "error": "Invalid JSON"}
         action = req.get("action", "")
         key = req.get("plugin", "")
+        logger.debug("Control request: action=%s plugin=%s", action, key or "<all>")
 
         if action == "trigger":
             if key:

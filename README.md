@@ -79,7 +79,7 @@ plugins:
 | `MIRRORD_CONFIG` | `config.yaml` | Config file path |
 | `MIRRORD_SOCKET` | `/tmp/mirrord/control.sock` | Control socket path |
 | `MIRRORD_LOG_LEVEL` | `INFO` | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
-| `MIRRORD_GEOIP_DB` | _(auto-detect)_ | Path to a GeoLite2 Country `.mmdb` database |
+| `MIRRORD_GEOIP_DB` | _(auto-detect)_ | Path to a GeoLite2 Country `.mmdb` database (see [GeoIP](#geoip)) |
 
 ## API
 
@@ -125,3 +125,44 @@ Rsyncs Arch Linux package repos from a Tier‑1 upstream. Compares the
 docker build -t mirrord .
 docker run -d -p 8080:8080 -v /srv/mirrors:/data -v ./config.yaml:/app/config.yaml mirrord
 ```
+
+## GeoIP
+
+Download stats can be broken down by country. This requires a MaxMind
+[GeoLite2 Country](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
+`.mmdb` database, which is **not** bundled in the image (it needs a free MaxMind
+license to download). Without one, geolocation is silently disabled and
+everything else works normally.
+
+At startup mirrord looks for the database in these locations, in order:
+
+1. The path given by `MIRRORD_GEOIP_DB` (if set)
+2. `/usr/share/GeoIP/GeoLite2-Country.mmdb`
+3. `/var/lib/GeoIP/GeoLite2-Country.mmdb`
+4. `/usr/local/share/GeoIP/GeoLite2-Country.mmdb`
+
+To enable it, mount your `.mmdb` file into the container. Either drop it in one
+of the default paths:
+
+```bash
+docker run -d -p 8080:8080 \
+  -v /srv/mirrors:/data \
+  -v ./config.yaml:/app/config.yaml \
+  -v /path/to/GeoLite2-Country.mmdb:/usr/share/GeoIP/GeoLite2-Country.mmdb:ro \
+  mirrord
+```
+
+…or mount it anywhere and point `MIRRORD_GEOIP_DB` at it:
+
+```bash
+docker run -d -p 8080:8080 \
+  -v /srv/mirrors:/data \
+  -v ./config.yaml:/app/config.yaml \
+  -v /path/to/geoip:/data/geoip:ro \
+  -e MIRRORD_GEOIP_DB=/data/geoip/GeoLite2-Country.mmdb \
+  mirrord
+```
+
+To confirm the database was picked up, start with `MIRRORD_LOG_LEVEL=DEBUG` and
+look for the `mirrord.geo` log lines (`GeoIP loaded: …` vs. `No GeoIP database
+found`).

@@ -8,11 +8,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import load_config
-from app.plugins.registry import register_builtins
-from app.sync_engine import SyncEngine
-from app.web.routes import router, set_engine
-
+# Configure logging BEFORE importing app modules. Some modules (e.g.
+# app.web.routes) construct objects at import time that emit log records
+# (GeoIP database discovery). If basicConfig runs after those imports, those
+# records are emitted with no handler/level configured and get dropped.
 _LOG_LEVEL_NAME = os.environ.get("MIRRORD_LOG_LEVEL", "INFO").upper()
 _LOG_LEVEL = getattr(logging, _LOG_LEVEL_NAME, logging.INFO)
 
@@ -27,6 +26,11 @@ if not isinstance(getattr(logging, _LOG_LEVEL_NAME, None), int):
     logger.warning(
         "Unknown MIRRORD_LOG_LEVEL %r, falling back to INFO", _LOG_LEVEL_NAME
     )
+
+from app.config import load_config  # noqa: E402
+from app.plugins.registry import register_builtins  # noqa: E402
+from app.sync_engine import SyncEngine  # noqa: E402
+from app.web.routes import router, set_engine  # noqa: E402
 
 
 def datetime_filter(ts: float, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:

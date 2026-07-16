@@ -10,3 +10,4 @@ reasonix.toml
 .codegraph
 .ruff_cache/
 data
+.vscode

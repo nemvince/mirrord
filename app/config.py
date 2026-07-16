@@ -1,4 +1,5 @@
 import ipaddress
+import os
 import re
 import threading
 
@@ -27,10 +28,15 @@ class SyncConfig:
     def __init__(self, data: dict):
         self.interval: int = data.get("interval", 3600)
         self.lock_dir: str = data.get("lock_dir", "/tmp/mirrord")
+        self.database_path: str = data.get(
+            "database_path", os.path.join(self.lock_dir, "mirrord.db")
+        )
         if self.interval <= 0:
             raise ValueError(f"sync.interval must be > 0, got {self.interval}")
         if not self.lock_dir.strip():
             raise ValueError("sync.lock_dir must not be empty")
+        if not self.database_path.strip():
+            raise ValueError("sync.database_path must not be empty")
         self.trusted_proxies: list[ipaddress._BaseNetwork] = [
             ipaddress.ip_network(n)
             for n in data.get("trusted_proxies", DEFAULT_TRUSTED_PROXIES)

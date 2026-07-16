@@ -45,7 +45,7 @@ class SyncEngine:
             return
         self._started_event.set()
         self._record_config_mtime()
-        db_path = os.path.join(self.config.sync.lock_dir, "mirrord.db")
+        db_path = self.config.sync.database_path
         self.download_db = DownloadDB(db_path)
         if self.config.sync.lock_dir:
             self.download_db.migrate_from_json(self.config.sync.lock_dir)

@@ -21,6 +21,9 @@ sync:
   interval: 21600
   # Directory to store lock files
   lock_dir: "/tmp/mirrord"
+  # Path to the SQLite database used for download and sync stats.
+  # Defaults to "<lock_dir>/mirrord.db" if not set.
+  # database_path: "/var/lib/mirrord/mirrord.db"
   # Networks allowed to assert the real client IP via X-Forwarded-For,
   # X-Real-IP, or Forwarded headers. Requests from other addresses are
   # treated as the client itself and these headers are ignored (prevents

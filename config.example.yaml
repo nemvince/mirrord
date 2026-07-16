@@ -19,11 +19,14 @@ sync:
   # How often to run sync jobs (in seconds).  6–24 h recommended
   # for public mirrors — be kind to upstream bandwidth.
   interval: 21600
+
   # Directory to store lock files
-  lock_dir: "/tmp/mirrord"
+  lock_dir: "/var/lib/mirrord/lock"
+
   # Path to the SQLite database used for download and sync stats.
   # Defaults to "<lock_dir>/mirrord.db" if not set.
-  # database_path: "/var/lib/mirrord/mirrord.db"
+  database_path: "/var/lib/mirrord/mirrord.db"
+
   # Networks allowed to assert the real client IP via X-Forwarded-For,
   # X-Real-IP, or Forwarded headers. Requests from other addresses are
   # treated as the client itself and these headers are ignored (prevents
@@ -43,7 +46,7 @@ plugins:
       Public Tier‑2 rsync — no registration needed.
       ~80–100 GiB with sources excluded.
     config:
-      target: "/data/archlinux"
+      target: "/data/mirrors/archlinux"
       source_url: "rsync://mirrors.kernel.org/archlinux"
       tls: false         # public mirrors use plain rsync, not rsync-ssl
       bwlimit: 4096      # KiB/s — leave 0 for unlimited
@@ -63,7 +66,7 @@ plugins:
       https://www.debian.org/mirror/ftpmirror.
       Requires `ftpsync` on the host (apt install ftpsync).
     config:
-      target: "/data/debian"
+      target: "/data/mirrors/debian"
       host: "ftp.debian.org"
       rsync_path: "debian"
       archs: "amd64"
@@ -81,7 +84,7 @@ plugins:
       need public-mirror grade.  Prefer the ftpsync entry above for
       anything that will be served publicly.
     config:
-      target: "/data/debian-subset"
+      target: "/data/mirrors/debian-subset"
       source_url: "rsync://ftp.debian.org/debian"
       tls: false
       bwlimit: 4096
@@ -101,7 +104,7 @@ plugins:
       Useful for NFS mounts, externally managed data, or manually
       populated trees.
     config:
-      target: "/data/static-assets"
+      target: "/data/mirrors/static-assets"
 
   # Add more mirrors below by copying a block above and adjusting
   # type, name, slug, and config.

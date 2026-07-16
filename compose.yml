@@ -6,8 +6,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - /mirrors:/data
-      - mirrord_db:/tmp/mirrord
+      - ./data/lock:/var/lib/mirrord/lock
+      - ./data/mirrord.db:/var/lib/mirrord/mirrord.db
+      - ./data/mirrors:/mirrors
 
 volumes:
   mirrord_db:

@@ -9,3 +9,4 @@ node_modules
 reasonix.toml
 .codegraph
 .ruff_cache/
+data

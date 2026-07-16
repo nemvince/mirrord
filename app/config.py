@@ -1,3 +1,4 @@
+import ipaddress
 import re
 import threading
 
@@ -10,6 +11,18 @@ def _slugify(name: str) -> str:
     return s.strip("-")
 
 
+# Networks whose requests are allowed to assert client identity via
+# X-Forwarded-For / X-Real-IP / Forwarded. Anything outside these is treated
+# as the actual client (spoofing the headers is ignored).
+DEFAULT_TRUSTED_PROXIES = [
+    "127.0.0.0/8",
+    "::1/128",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+]
+
+
 class SyncConfig:
     def __init__(self, data: dict):
         self.interval: int = data.get("interval", 3600)
@@ -18,6 +31,17 @@ class SyncConfig:
             raise ValueError(f"sync.interval must be > 0, got {self.interval}")
         if not self.lock_dir.strip():
             raise ValueError("sync.lock_dir must not be empty")
+        self.trusted_proxies: list[ipaddress._BaseNetwork] = [
+            ipaddress.ip_network(n)
+            for n in data.get("trusted_proxies", DEFAULT_TRUSTED_PROXIES)
+        ]
+
+    def is_trusted_proxy(self, ip: str) -> bool:
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        return any(addr in net for net in self.trusted_proxies)
 
 
 class PluginConfig:

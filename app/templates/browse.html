@@ -102,55 +102,5 @@
     mirrord {{ version }} &mdash; loaded <span id="loaded-at">{{ now|int|datetime }}</span>
   </div>
 
-<script>
-(function(){
-var STATUS = {success:'text-blade',failed:'text-flame',running:'text-ember',skipped:'text-glow',idle:'text-dim'};
-var SLUG = "{{ browse_slug }}";
-var GiB = 1073741824;
-var fmtTs = function(ts){var d=new Date(ts*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');};
-var fmtSecs = function(s){if(s>3600)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';if(s>60)return Math.floor(s/60)+'m '+Math.floor(s%60)+'s';return Math.floor(s)+'s';};
-var fmtGiB = function(b){return (b/GiB).toFixed(1)+' GiB';};
-var $ = function(s,r){return(r||document).querySelector(s);};
-
-var es = new EventSource("/api/stream");
-es.onmessage = function(e){
-  var d = JSON.parse(e.data);
-  $('loaded-at').textContent = fmtTs(d.now);
-  // Next sync
-  if(d.next_sync_ts){
-    var nr=$('next-sync-row'), nv=$('next-sync'), secs=Math.floor(d.next_sync_ts-d.now);
-    nr.style.display=''; nv.textContent=secs>0?fmtSecs(secs):'imminent';
-  }
-  // Find this plugin in the stream
-  var p = null;
-  for(var i=0;i<d.plugins.length;i++){if(d.plugins[i].slug===SLUG){p=d.plugins[i];break;}}
-  if(!p)return;
-  // Status
-  var st=$('[data-role="status"]');
-  if(st){st.textContent=p.status;st.className=(STATUS[p.status]||'text-dim');}
-  // Last sync
-  var lr=$('[data-role="last-row"]'), lv=$('[data-role="last"]');
-  if(p.last_sync){lr.style.display='';lv.textContent=fmtTs(p.last_sync);}else{lr.style.display='none';}
-  // Duration
-  var dr=$('[data-role="dur-row"]'), dv=$('[data-role="dur"]');
-  if(p.last_duration!==null&&p.last_duration!==undefined){dr.style.display='';dv.textContent=p.last_duration.toFixed(1)+'s';}else{dr.style.display='none';}
-  // Size
-  var sr=$('[data-role="size-row"]'), sv=$('[data-role="size"]');
-  if(p.dir_size){sr.style.display='';sv.textContent=fmtGiB(p.dir_size);}else{sr.style.display='none';}
-  // Totals
-  var tv=$('[data-role="total"]'), fv=$('[data-role="fail"]');
-  if(tv)tv.textContent=p.total_syncs; if(fv)fv.textContent=p.total_failures;
-  // Xfer
-  var xr=$('[data-role="xfer-row"]'), xv=$('[data-role="xfer"]');
-  if(p.total_bytes_transferred){xr.style.display='';xv.textContent=fmtGiB(p.total_bytes_transferred);}else{xr.style.display='none';}
-  // Downloads
-  var dlr=$('[data-role="dl-row"]'), dlv=$('[data-role="downloads"]');
-  if(p.total_downloads){dlr.style.display='';dlv.textContent=p.total_downloads;}else{dlr.style.display='none';}
-  // Served
-  var svr=$('[data-role="served-row"]'), svv=$('[data-role="served"]');
-  if(p.total_bytes_served){svr.style.display='';svv.textContent=fmtGiB(p.total_bytes_served);}else{svr.style.display='none';}
-};
-})();
-</script>
 </body>
 </html>

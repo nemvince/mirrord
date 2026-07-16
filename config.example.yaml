@@ -21,6 +21,13 @@ sync:
   interval: 21600
   # Directory to store lock files
   lock_dir: "/tmp/mirrord"
+  # Networks allowed to assert the real client IP via X-Forwarded-For,
+  # X-Real-IP, or Forwarded headers. Requests from other addresses are
+  # treated as the client itself and these headers are ignored (prevents
+  # IP spoofing). Defaults to loopback + private ranges. Set this to your
+  # reverse proxy's address(es) so GeoIP geocodes the visitor, not the proxy.
+  # trusted_proxies:
+  #   - "172.20.0.0/16"
 
 plugins:
   # ── Arch Linux (Tier 2 public mirror) ──────────────────────────

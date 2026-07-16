@@ -1,10 +1,10 @@
-import asyncio
-import json
 import os
 import shutil
 import time
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -13,7 +13,6 @@ from fastapi.responses import (
     HTMLResponse,
     RedirectResponse,
     Response,
-    StreamingResponse,
 )
 
 from app.charts import svg_daily_chart, svg_hbar_chart, svg_multi_hbar
@@ -26,18 +25,69 @@ _engine: SyncEngine | None = None
 _geoip = GeoIP()
 
 
+class RequestLike(Protocol):
+    """Structural subset of starlette.Request used for client-IP resolution."""
+
+    @property
+    def client(self) -> "_ClientInfo | None": ...
+
+    @property
+    def headers(self) -> Mapping[str, str]: ...
+
+
+class _ClientInfo(Protocol):
+    @property
+    def host(self) -> str: ...
+
+
 def set_engine(engine: SyncEngine) -> None:
     global _engine
     _engine = engine
 
 
-def _client_ip(request: Request) -> str | None:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+def _client_ip(request: RequestLike) -> str | None:
+    """Return the real client IP, honouring proxy headers only from trusted peers.
+
+    If the immediate peer (the TCP client) is a trusted proxy, we unwrap the
+    original client address from X-Forwarded-For / X-Real-IP / Forwarded.
+    Otherwise those headers are treated as spoofed and the peer IP is used.
+    """
+    peer = request.client.host if request.client else None
+    engine = _engine
+    if engine is None or peer is None:
+        return peer
+
+    sync_cfg = engine.config.sync
+    if not sync_cfg.is_trusted_proxy(peer):
+        return peer
+
+    # Walk X-Forwarded-For from right to left, skipping trusted hops, to find
+    # the first untrusted IP — that's the real client.
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        hops = [h.strip() for h in xff.split(",") if h.strip()]
+        for hop in reversed(hops):
+            ip = hop.split(":")[0]  # strip optional port
+            if not sync_cfg.is_trusted_proxy(ip):
+                return ip
+        # Every hop was a trusted proxy; fall back to leftmost.
+        return hops[0].split(":")[0]
+
+    x_real = request.headers.get("x-real-ip")
+    if x_real:
+        return x_real.strip().split(":")[0]
+
+    fwd = request.headers.get("forwarded")
+    if fwd:
+        # RFC 7239: pick the first "for=" with an IP; strip brackets/port.
+        for part in fwd.split(";"):
+            part = part.strip()
+            if part.lower().startswith("for="):
+                token = part[4:].strip().strip('"')
+                if token.startswith("["):  # IPv6 literal
+                    return token[1:].split("]")[0]
+                return token.split(":")[0]
+    return peer
 
 
 def _valid_slug(slug: str) -> bool:
@@ -339,50 +389,6 @@ async def api_download_stats(
         "top_files": db.get_top_files(slug=slug, limit=25),
         "recent": db.get_recent(limit=50),
     }
-
-
-@router.get("/api/stream")
-async def api_stream():
-    """Server-Sent Events: pushes stats every 2 seconds for live dashboard."""
-
-    async def event_stream():
-        while True:
-            await asyncio.sleep(2)
-            if _engine is None:
-                continue
-            stats = _engine.get_all_stats()
-            dl_stats = _engine.get_download_stats()
-            payload = {
-                "now": time.time(),
-                "plugins": [
-                    {
-                        "slug": s.slug,
-                        "status": s.status.value,
-                        "last_sync": s.last_sync,
-                        "last_duration": s.last_duration,
-                        "last_error": s.last_error,
-                        "total_syncs": s.total_syncs,
-                        "total_failures": s.total_failures,
-                        "total_bytes_transferred": s.total_bytes_transferred,
-                        "sync_started_at": s.sync_started_at,
-                        "progress_pct": s.progress_pct,
-                        "dir_size": s.dir_size,
-                        "total_downloads": dl_stats.get(s.slug, {}).get(
-                            "total_downloads", 0
-                        ),
-                        "total_bytes_served": dl_stats.get(s.slug, {}).get(
-                            "total_bytes_served", 0
-                        ),
-                        "last_download": dl_stats.get(s.slug, {}).get("last_download"),
-                        "top_files": dl_stats.get(s.slug, {}).get("top_files", []),
-                    }
-                    for s in stats
-                ],
-                "next_sync_ts": _engine.get_next_sync_time(),
-            }
-            yield f"data: {json.dumps(payload)}\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/api/browse/{plugin_name}")

@@ -8,7 +8,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import get_config, reload_config
 from app.db import DownloadDB
-from app.download_stats import DownloadTracker
 from app.plugins.registry import get_plugin
 
 logger = logging.getLogger("mirrord.sync")
@@ -29,7 +28,6 @@ class SyncEngine:
         self._config_mtime: float = 0
         self._reload_lock = threading.Lock()
         self.download_db: DownloadDB | None = None
-        self.download_tracker = DownloadTracker()
 
     def _get_plugins_snapshot(self) -> list:
         """Return a snapshot of the current plugin list (thread-safe)."""
@@ -49,9 +47,8 @@ class SyncEngine:
         self._record_config_mtime()
         db_path = os.path.join(self.config.sync.lock_dir, "mirrord.db")
         self.download_db = DownloadDB(db_path)
-        if self.config.sync.lock_dir and not self.download_db.has_data():
+        if self.config.sync.lock_dir:
             self.download_db.migrate_from_json(self.config.sync.lock_dir)
-        self.download_tracker = DownloadTracker(db=self.download_db)
         self._init_plugins()
         interval = self.config.sync.interval
         self.scheduler.add_job(
@@ -97,16 +94,13 @@ class SyncEngine:
             # Reuse existing lock if slug survived the reload, else create new
             if plugin.stats.slug not in self._plugin_locks:
                 self._plugin_locks[plugin.stats.slug] = threading.Lock()
-            # Persist stats across restarts
-            plugin.stats._stats_path = os.path.join(
-                self.config.sync.lock_dir, f"{pc.slug}.stats.json"
-            )
-            plugin.stats.load()
-            # Initialise download tracker for this plugin
-            summary = (
-                self.download_db.get_summary(pc.slug) if self.download_db else None
-            )
-            self.download_tracker.ensure_plugin(pc.slug, db_summary=summary)
+            # Register identity + restore cumulative stats from the DB
+            db = self.download_db
+            if db is not None:
+                db.upsert_plugin(pc.slug, pc.name, pc.type, pc.description)
+                saved = db.load_plugin_stats(pc.slug)
+                if saved is not None:
+                    plugin.stats = saved
             logger.info("Loaded plugin: %s (%s, slug=%s)", pc.name, pc.type, pc.slug)
         with self._plugins_lock:
             self._plugins = new_plugins
@@ -160,9 +154,7 @@ class SyncEngine:
             self._record_config_mtime()
             self._init_plugins()
 
-            # Prune download stats for removed plugins
             active_slugs = {p.stats.slug for p in self._get_plugins_snapshot()}
-            self.download_tracker.prune_stale(active_slugs)
 
             # Reschedule with potentially new interval
             try:
@@ -214,6 +206,9 @@ class SyncEngine:
                     )
             except Exception as e:
                 logger.error("Sync %s failed: %s", plugin.stats.plugin_name, e)
+            finally:
+                if self.download_db is not None:
+                    self.download_db.save_plugin_stats(plugin.stats.slug, plugin.stats)
 
     def get_all_stats(self) -> list:
         return [p.stats.snapshot() for p in self._get_plugins_snapshot()]
@@ -226,16 +221,13 @@ class SyncEngine:
         ua: str | None = None,
         geocode: str | None = None,
     ) -> None:
-        self.download_tracker.record_download(
-            slug,
-            path,
-            size,
-            ua=ua,
-            geocode=geocode,
-        )
+        if self.download_db is not None:
+            self.download_db.record(slug, path, size, ua=ua, geocode=geocode)
 
     def get_download_stats(self) -> dict[str, dict]:
-        return self.download_tracker.get_all_snapshots()
+        if self.download_db is None:
+            return {}
+        return self.download_db.get_all_snapshots()
 
     def get_next_sync_time(self) -> float | None:
         """Return the next scheduled sync timestamp, or None if not available."""

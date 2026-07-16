@@ -32,6 +32,7 @@ def _render(chart: Any) -> str:
         count=1,
     )
 
+
 # Ayu-dark palette (kept for backwards-compatible imports / call sites).
 INK = "#0a0e14"
 DIVIDE = "#1f2430"

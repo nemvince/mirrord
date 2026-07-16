@@ -17,8 +17,7 @@ def _assert_static_svg(svg: str) -> None:
 
 def _daily(n: int) -> list[dict]:
     return [
-        {"date": f"2026-01-{i:02d}", "count": (i * 7) % 23}
-        for i in range(1, n + 1)
+        {"date": f"2026-01-{i:02d}", "count": (i * 7) % 23} for i in range(1, n + 1)
     ]
 
 

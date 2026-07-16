@@ -32,9 +32,7 @@ class GeoIP:
             if os.path.isfile(env_path):
                 logger.debug("Using GeoIP DB from MIRRORD_GEOIP_DB: %s", env_path)
                 return env_path
-            logger.debug(
-                "MIRRORD_GEOIP_DB set to %s but file not found", env_path
-            )
+            logger.debug("MIRRORD_GEOIP_DB set to %s but file not found", env_path)
         for path in _COMMON_PATHS:
             if os.path.isfile(path):
                 logger.debug("Found GeoIP DB at common path: %s", path)

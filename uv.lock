@@ -247,6 +247,15 @@ wheels = [
 ]
 
 [[package]]
+name = "charted"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/c8/4abe7be8136c37998cdfa16232560938f11d1a1e5025ce3ed6e508d12915/charted-1.2.1.tar.gz", hash = "sha256:291fae2953fc6ee165ae31890b67985e94f5ed83c66c301c3e5bc4714dd9af09", size = 2410944, upload-time = "2026-06-18T08:27:30.996Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/12/0041543477a747bceda32f1bd92ae2c7497b6794984d999484a42aac2f9e/charted-1.2.1-py3-none-any.whl", hash = "sha256:c6f507d343de432dc88447db44581e760d36c85b97770dce2cc428c67fcd1068", size = 1346019, upload-time = "2026-06-18T08:27:29.537Z" },
+]
+
+[[package]]
 name = "click"
 version = "8.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -586,6 +595,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },
+    { name = "charted" },
     { name = "fastapi" },
     { name = "jinja2" },
     { name = "pyyaml" },
@@ -606,6 +616,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.10.0" },
+    { name = "charted", specifier = ">=1.2.1" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "geoip2", marker = "extra == 'geoip'", specifier = ">=4.0" },
     { name = "jinja2", specifier = ">=3.1.0" },

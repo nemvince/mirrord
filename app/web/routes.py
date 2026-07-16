@@ -15,7 +15,7 @@ from fastapi.responses import (
     Response,
 )
 
-from app.charts import svg_daily_chart, svg_hbar_chart, svg_multi_hbar
+from app.charts import svg_daily_chart, svg_hbar_chart
 from app.geo import GeoIP
 from app.sync_engine import SyncEngine
 
@@ -340,28 +340,20 @@ async def download_stats_page(request: Request):
     )
     all_stats = _engine.get_all_stats() if _engine else []
     slug_labels = {s.slug: s.plugin_name for s in all_stats}
-    slug_datasets = []
-    for s in by_slug:
-        name = slug_labels.get(s["slug"], s["slug"])
-        slug_datasets.append((name, [s], None))
+    by_slug_named = [
+        {"slug": slug_labels.get(s["slug"], s["slug"]), "count": s["count"]}
+        for s in by_slug
+    ]
 
     by_slug_svg = ""
-    if slug_datasets:
-        by_slug_svg = svg_multi_hbar(
-            [(title, data, "#ffb454") for title, data, _ in slug_datasets],
+    if by_slug_named:
+        by_slug_svg = svg_hbar_chart(
+            by_slug_named,
             label_key="slug",
             value_key="count",
             title="Downloads per Mirror",
+            bar_color="#ffb454",
         )
-        # fall back to simple hbar if multi doesn't work well
-        if not by_slug_svg:
-            by_slug_svg = svg_hbar_chart(
-                by_slug,
-                label_key="slug",
-                value_key="count",
-                title="Downloads per Mirror",
-                bar_color="#ffb454",
-            )
 
     ctx = {
         "now": time.time(),

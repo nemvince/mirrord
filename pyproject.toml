@@ -9,6 +9,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "pyyaml>=6.0",
     "apscheduler>=3.10.0",
+    "charted>=1.2.1",
 ]
 optional-dependencies = { geoip = ["geoip2>=4.0"] }
 authors = [
